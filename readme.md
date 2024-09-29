@@ -34,11 +34,14 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | RailNotFoundException | Rail is not found on bus | |
 | ModuleExisits | Module is reinitialized with same name for second time |  |
 | GroupExists | Group is reinitialized with same name for second time |  |
+| GroupNotFound | Group is not found on target |  |
+| GroupColisionWithEndpoint | Group is colliding with existing endpoint |  |
+| EndpointGroupCollision | Endpoint is colliding with existing group |  |
 | EndpointAlreadyExists | Endpoint is reinitialized with same name for second time |  |
 | InvalidEndpointParameter | Trying to use parameter that is not compatibile with given type of endpoint |
 | InvalidEnpointType | Provided type is not a valid endpoint type |
 | InvalidRailName | Rail name not meeting criteria | Rail may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` |
-| InvalidGroupName | Group name not meeting criteria | Group may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` |
+| InvalidGroupName | Group name not meeting criteria | Group may contain letters from ``a-Z``, numbers ``0-9`` |
 | InvalidEndpointName | Endpoint name not meeting criteria | Group may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` |
 | MissingArgument | Endpoint triggered with missing required argument |  |
 | UnknownArgument | Endpoint triggered with extra argument | Extra argument is not presend in endpoint definition | | ProcessingFailed | Processing for endpoint failed | When listener function for endpoint fails to process data |
@@ -60,6 +63,7 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | bindModuleToRail | railName : str | None | Binds module to rail |
 | createGroup | address : str<br>groupName : str | None | Registers a new group for given address |
 | createEndpoint | groupAdress : str<br>endpointName : str<br>endpointType : str<br>responder<br>**endpointParameters| None | Registers a new group for given endpoint |
+| addressExists | address : str | exists : bool | Check if address exists |
 | fireTrigger | address : str<br>*args<br>**kwargs | success : bool | Fire trigger on endpoint with arguments, returns state |
 | fireTriggerAsync | address : str<br>*args<br>**kwargs | success : bool | Asynchronously fire trigger on endpoint with arguments, returns state |
 | callEvent | address : str<br>*args<br>**kwargs | None | Call an event on endpoint with arguments |

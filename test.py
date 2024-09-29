@@ -1,7 +1,7 @@
 #!/bin/env python3
 from logging import exception
 import unittest
-from mbus import InvalidRailNameException, RailAlreadyBoundException, RailExistsException, RailNotFoundExceptionException
+from mbus import BusException, GroupExistsException, GroupNotFound, InvalidGroupNameException, InvalidRailNameException, RailAlreadyBoundException, RailExistsException, RailNotFoundException
 from mbus import mbus
 
 class mBusSingleton(unittest.TestCase):
@@ -36,7 +36,7 @@ class mBusRail(unittest.TestCase):
         for case in cases:
             try:
                 mbus.registerRail(case)
-            except InvalidRailNameException:
+            except BusException:
                 failed = True
             else:
                 failed = False
@@ -59,7 +59,7 @@ class mBusRail(unittest.TestCase):
         try:
             mbus.registerRail("rail2", bindToModule = True)
             mbus.registerRail("rail3", bindToModule = True)
-        except RailAlreadyBoundException:
+        except BusException:
             failed = True
         else:
             failed = False
@@ -69,7 +69,7 @@ class mBusRail(unittest.TestCase):
         try:
             mbus.registerRail("rail4")
             mbus.registerRail("rail5")
-        except RailAlreadyBoundException:
+        except BusException:
             failed = True
         else:
             failed = False
@@ -88,12 +88,80 @@ class mBusRail(unittest.TestCase):
 
         try:
             mbus.bindModuleToRail("sdjlganj")
-        except RailNotFoundExceptionException:
+        except RailNotFoundException:
             failed = True
         else:
             failed = False
 
         self.assertTrue(failed)
+
+class mBusGroup(unittest.TestCase):
+    def test_registerGroupNameFail(self):
+        railName = "grouptestfail"
+        mbus.registerRail(railName)
+        cases = ["!", "0name", "name!", "name-test", "test group", "test_group"]
+        for case in cases:
+            try:
+                mbus.createGroup(f"{railName}.{case}")
+            except InvalidGroupNameException:
+                failed = True
+            else:
+                failed = False
+
+            self.assertTrue(failed, f"Failed on name {case}")
+
+    def test_registerGroupNameSuccess(self):
+        railName = "grouptestsuccess"
+        mbus.registerRail(railName)
+        cases = ["validname1", "anothervaildname", "testgroup0", "vaildgroup"]
+        for case in cases:
+            try:
+                mbus.createGroup(f"{railName}.{case}")
+                self.assertTrue(mbus.addressExists(f"{railName}.{case}"))
+            except BusException:
+                failed = True
+            else:
+                failed = False
+
+            self.assertFalse(failed)
+
+    def test_doubleGroup(self):
+        railName = "grupDobule"
+        mbus.registerRail(railName)
+        try:
+            mbus.createGroup(f"{railName}.double")
+            mbus.createGroup(f"{railName}.double")
+        except GroupExistsException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertTrue(failed)
+
+    def test_groupNotFound(self):
+        railName = "groupNotFound"
+        mbus.registerRail(railName)
+        try:
+            mbus.createGroup(f"{railName}.notfound.test")
+        except GroupNotFound:
+            failed = True
+        else:
+            failed = False
+        self.assertTrue(failed)
+
+    def test_groupCascade(self):
+        railName = "groupCascade"
+        mbus.registerRail(railName)
+        cascade = list("abcdefghijkl")
+        try:
+            for i in range(1, len(cascade)):
+                mbus.createGroup(f"{railName}.{'.'.join(cascade[:i])}")
+        except BusException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertFalse(failed)
 
 if __name__ == "__main__":
     unittest.main()
