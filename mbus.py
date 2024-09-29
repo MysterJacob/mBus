@@ -14,37 +14,37 @@ class BusException(Exception):
     def __repr__(self) -> str:
         return str(self)
 
-class InvalidRailNameException(BusException):
-    '''Exception thrown when provided rail name is invalid'''
-
-class RailExistsException(BusException):
+class RailAlready(BusException):
     '''Exception thrown when rail with provided name does already exist'''
 
-class RailAlreadyBoundException(BusException):
-    '''Exception thrown when rail is already bound to module'''
+class RailAlreadyBound(BusException):
+    '''Exception thrown when rail with given name is already bound to module'''
 
-class RailNotFoundException(BusException):
-    '''Exception thrown when rail with given name is not found on target'''
+class RailNotFound(BusException):
+    '''Exception thrown when rail with given name is not found in module'''
 
-class InvalidGroupNameException(BusException):
-    '''Exception thrown when provided group name is invalid'''
+class InvalidRailName(BusException):
+    '''Exception thrown when rail name does not meet the criteria'''
 
-class GroupExistsException(BusException):
+class GroupAlreadyExists(BusException):
     '''Exception thrown when group with provided name does already exist'''
 
-class GroupNotFoundException(BusException):
+class InvalidGroupName(BusException):
+    '''Exception thrown when group name not meeting the criteria'''
+
+class GroupNotFound(BusException):
     '''Exception thrown when group is not found on target'''
 
 class EndpointNotFound(BusException):
     '''Exception thrown when endpoint is not found on target'''
 
-class EndpointGroupCollisionException(BusException):
+class EndpointGroupCollision(BusException):
     '''Exception thrown when endpoint is colliding with existing group'''
 
-class EndpointAlreadyExistsException(BusException):
+class EndpointAlreadyExists(BusException):
     '''Exception thrown when endpoint is reinitialized with the same nae for second time'''
 
-class InvalidEnpointParameterException(BusException):
+class InvalidEnpointParameter(BusException):
     '''Exception thrown trying to use parameter that is not compatibile with given endpoint type'''
 
 class MissingEndpointParameter(BusException):
@@ -53,16 +53,16 @@ class MissingEndpointParameter(BusException):
 class InvalidFieldValueType(BusException):
     '''Field is set with variable type different from the field type'''
 
-class InvalidEndpointTypeException(BusException):
+class InvalidEndpointType(BusException):
     '''Exception thrown when provided endpoint type is not valid'''
 
-class InvalidEnpointNameExecption(BusException):
-    '''Exception thrown when provided endpoint name is invalid'''
-
-class CanNotCreateEndpointOnRailException(BusException):
+class CanNotCreateEndpointOnRail(BusException):
     '''Exception thrown when user tries to create endpoint on rail'''
 
-class MissingArgument(BusException):
+class InvalidEnpointName(BusException):
+    '''Exception thrown when endpoint name not meeting criteria'''
+
+class MissingArgumentException(BusException):
     '''Endpoint triggered with missing required argument'''
 
 class UnknownArgument(BusException):
@@ -71,8 +71,14 @@ class UnknownArgument(BusException):
 class FireTriggerFailed(BusException):
     '''Trigger fire failed'''
 
+class CallEventFailed(BusException):
+    '''Event call failed'''
+
 class InvalidTrigger(BusException):
     '''Trying to fire something that is not a trigger'''
+
+class InvalidEvent(BusException):
+    '''Trying to call something that is not a event'''
 
 RAIL_NAME_REGEX = '^([A-Z]|[a-z])([A-Z]|[a-z]|[0-9]|_)*$'
 def isRailNameInvalid(railName : str) -> bool:
@@ -117,7 +123,7 @@ class busGroup:
 
     def getGroup(self, groupName : str) -> 'busGroup':
         if not groupName in self.groups.keys():
-            raise GroupNotFoundException(f'Group {groupName} is not found in group {self.groupName}')
+            raise GroupNotFound(f'Group {groupName} is not found in group {self.groupName}')
 
         return self.groups[groupName]
 
@@ -129,10 +135,10 @@ class busGroup:
 
     def createGroup(self, groupName : str) -> None:
         if groupName in self.groups.keys():
-            raise GroupExistsException(f'Group {groupName} exists in group {self.groupName}')
+            raise GroupAlreadyExists(f'Group {groupName} exists in group {self.groupName}')
 
         if isGroupNameInvalid(groupName):
-            raise InvalidGroupNameException(f'Group name {groupName} is not vaild name for group')
+            raise InvalidGroupName(f'Group name {groupName} is not vaild name for group')
 
         newGroup = busGroup(groupName, {}, {})
         self.groups[groupName] = newGroup
@@ -146,7 +152,7 @@ class busGroup:
 
         difference = endpointParametersKeys - allParameters
         if len(difference) != 0:
-            raise InvalidEnpointParameterException(f"Argument {difference.pop()} is invalid for given endpoint type.")
+            raise InvalidEnpointParameter(f"Argument {difference.pop()} is invalid for given endpoint type.")
 
     def __checkParametersForTrigger(self, endpointParameters : dict):
         requiredParameters = set(["responder", "arguments"])
@@ -211,10 +217,10 @@ class busGroup:
 
     def createEndpoint(self, endpointName : str, endpointType : str, endpointParameters):
         if endpointName in self.endpoints:
-            raise EndpointAlreadyExistsException(f'Endpoint already exists in group {self.groupName}')
+            raise EndpointAlreadyExists(f'Endpoint already exists in group {self.groupName}')
 
         if endpointName in self.groups:
-            raise EndpointGroupCollisionException(f'Endpoint collides with group {endpointName} in group {self.groupName}')
+            raise EndpointGroupCollision(f'Endpoint collides with group {endpointName} in group {self.groupName}')
 
         match endpointType:
             case 'trigger':
@@ -226,7 +232,7 @@ class busGroup:
             case 'action':
                 self.__createActionEndpoint(endpointName, endpointParameters)
             case _:
-                raise InvalidEndpointTypeException(f'Invalid enpoint type {endpointType}')
+                raise InvalidEndpointType(f'Invalid enpoint type {endpointType}')
 
 @dataclass
 class busRail:
@@ -239,16 +245,16 @@ class busRail:
 
     def getGroup(self, groupName : str) -> busGroup:
         if not groupName in self.groups.keys():
-            raise GroupNotFoundException(f'Group {groupName} is not found on rail {self.railName}')
+            raise GroupNotFound(f'Group {groupName} is not found on rail {self.railName}')
 
         return self.groups[groupName]
 
     def createGroup(self, groupName : str) -> None:
         if groupName in self.groups.keys():
-            raise GroupExistsException(f'Group {groupName} exists on rail {self.railName}')
+            raise GroupAlreadyExists(f'Group {groupName} exists on rail {self.railName}')
 
         if isGroupNameInvalid(groupName):
-            raise InvalidGroupNameException(f'Group name {groupName} is not vaild name for group')
+            raise InvalidGroupName(f'Group name {groupName} is not vaild name for group')
 
         newGroup = busGroup(groupName, {}, {})
         self.groups[groupName] = newGroup
@@ -264,14 +270,14 @@ class __mBusSingleton:
 
     def __getRail(self, railName : str):
         if not self.__railExists(railName):
-            raise RailNotFoundException(f'Rail {railName} is not found on bus')
+            raise RailNotFound(f'Rail {railName} is not found on bus')
         return self.__rails[railName]
 
     def __bindModuleToRail(self, railName : str):
         rail = self.__getRail(railName)
 
         if not self.__rails[railName].boundModule is None:
-            raise RailAlreadyBoundException(f'Rail {railName} is already bound to module {rail.boundModule}')
+            raise RailAlreadyBound(f'Rail {railName} is already bound to module {rail.boundModule}')
 
         moduleName = inspect.stack()[2][0].f_locals['self'].__class__.__name__
 
@@ -280,10 +286,10 @@ class __mBusSingleton:
 
     def registerRail(self, railName : str, bindToModule : bool = False) -> None:
         if isRailNameInvalid(railName):
-            raise InvalidRailNameException(f'Rail name {railName} is not vaild name for rail')
+            raise InvalidRailName(f'Rail name {railName} is not vaild name for rail')
 
         if self.__railExists(railName):
-            raise RailExistsException(f'Rail name {railName} is already registered')
+            raise RailAlready(f'Rail name {railName} is already registered')
 
         newRail = busRail(railName, {}, None)
         self.__rails.update({railName : newRail})
@@ -349,7 +355,7 @@ class __mBusSingleton:
 
     def createGroup(self, address : str) -> None:
         if address.count('.') == 0:
-            raise InvalidGroupNameException('No group name is provided on address')
+            raise InvalidGroupName('No group name is provided on address')
 
         *addresses, newGroupName = address.split('.')
 
@@ -360,7 +366,7 @@ class __mBusSingleton:
     def createEndpoint(self, groupAddress : str, endpointName : str, endpointType : str, **endpointParameters) -> None:
         targetGroup = self.__getGroupFromAddress(groupAddress)
         if isinstance(targetGroup, busRail):
-            raise CanNotCreateEndpointOnRailException(f'Can not create endpoint on rail {targetGroup.railName}')
+            raise CanNotCreateEndpointOnRail(f'Can not create endpoint on rail {targetGroup.railName}')
 
         targetGroup.createEndpoint(endpointName, endpointType, endpointParameters)
 
@@ -398,7 +404,7 @@ class __mBusSingleton:
 
         difference = endpointRequiredArgumentsSet - endpointArgumentsSet
         if len(difference) > 0:
-            raise MissingArgument(f"Missing endpoint argument {difference.pop()}")
+            raise MissingArgumentException(f"Missing endpoint argument {difference.pop()}")
 
 
     def __fireTriggerWithMutex(self, address : str, **kwargs) -> bool:
@@ -410,9 +416,23 @@ class __mBusSingleton:
 
         return endpoint.endpointDelegate(**kwargs)
 
-
     def fireTrigger(self, address : str, **kwargs) -> bool:
         with self.__mutex:
             return self.__fireTriggerWithMutex(address, **kwargs)
+
+    def __callEventWithMutex(self, address : str, **kwargs):
+        endpoint = self.__getEnpointFromAddress(address)
+
+        if not isinstance(endpoint, busEvent):
+            raise InvalidEvent(f'Invalid event {address}')
+
+        delegates = endpoint.endpointDelegates
+
+        for delegate in delegates:
+            delegate(**kwargs)
+
+    def callEventSync(self, address : str, **kwargs):
+        with self.__mutex:
+            self.__callEventWithMutex(address, **kwargs)
 
 mbus = __mBusSingleton()

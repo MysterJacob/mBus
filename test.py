@@ -1,7 +1,7 @@
 #!/bin/env python3
 from logging import exception
 import unittest
-from mbus import BusException, GroupExistsException, GroupNotFoundException, InvalidEnpointParameterException, InvalidFieldValueType, InvalidGroupNameException, InvalidRailNameException, MissingArgument, MissingEndpointParameter, RailAlreadyBoundException, RailExistsException, RailNotFoundException
+from mbus import BusException, GroupAlreadyExists, GroupNotFound, InvalidEnpointParameter, InvalidFieldValueType, InvalidGroupName, InvalidRailName, MissingArgumentException, MissingEndpointParameter, RailAlreadyBound, RailAlready, RailNotFound
 from mbus import mbus
 import random
 
@@ -25,7 +25,7 @@ class mBusRail(unittest.TestCase):
         for case in cases:
             try:
                 mbus.registerRail(case)
-            except InvalidRailNameException:
+            except InvalidRailName:
                 failed = True
             else:
                 failed = False
@@ -49,7 +49,7 @@ class mBusRail(unittest.TestCase):
         try:
             mbus.registerRail("rail1")
             mbus.registerRail("rail1")
-        except RailExistsException:
+        except RailAlready:
             failed = True
         else:
             failed = False
@@ -80,7 +80,7 @@ class mBusRail(unittest.TestCase):
         try:
             mbus.registerRail("rail6", bindToModule = True)
             mbus.bindModuleToRail("rail6")
-        except RailAlreadyBoundException:
+        except RailAlreadyBound:
             failed = True
         else:
             failed = False
@@ -89,7 +89,7 @@ class mBusRail(unittest.TestCase):
 
         try:
             mbus.bindModuleToRail("sdjlganj")
-        except RailNotFoundException:
+        except RailNotFound:
             failed = True
         else:
             failed = False
@@ -104,7 +104,7 @@ class mBusGroup(unittest.TestCase):
         for case in cases:
             try:
                 mbus.createGroup(f"{railName}.{case}")
-            except InvalidGroupNameException:
+            except InvalidGroupName:
                 failed = True
             else:
                 failed = False
@@ -132,7 +132,7 @@ class mBusGroup(unittest.TestCase):
         try:
             mbus.createGroup(f"{railName}.double")
             mbus.createGroup(f"{railName}.double")
-        except GroupExistsException:
+        except GroupAlreadyExists:
             failed = True
         else:
             failed = False
@@ -144,7 +144,7 @@ class mBusGroup(unittest.TestCase):
         mbus.registerRail(railName)
         try:
             mbus.createGroup(f"{railName}.notfound.test")
-        except GroupNotFoundException:
+        except GroupNotFound:
             failed = True
         else:
             failed = False
@@ -171,7 +171,7 @@ class TestGenericEndpoints(unittest.TestCase):
         mbus.registerRail(railName)
         try:
             mbus.createEndpoint(address + '.nongroup', 'endpoint1', 'trigger')
-        except GroupNotFoundException:
+        except GroupNotFound:
             failed = True
         else:
             failed = False
@@ -225,7 +225,7 @@ class TestGenericEndpoints(unittest.TestCase):
             mbus.createEndpoint(
                 address, 'testTrigger', 
                 'trigger', responder = lambda x : x, arguments={"x" : int}, invalid=1)
-        except InvalidEnpointParameterException:
+        except InvalidEnpointParameter:
             failed = True
         else:
             failed = False
@@ -278,7 +278,7 @@ class TestGenericEndpoints(unittest.TestCase):
             mbus.createEndpoint(
                 address, 'testEvent', 
                 'event', responders = lambda x : x, invalid=1)
-        except InvalidEnpointParameterException:
+        except InvalidEnpointParameter:
             failed = True
         else:
             failed = False
@@ -334,7 +334,7 @@ class TestGenericEndpoints(unittest.TestCase):
                 'field', 
                 type=int, value=0, invalid=1
             )
-        except InvalidEnpointParameterException:
+        except InvalidEnpointParameter:
             failed = True
         else:
             failed = False
@@ -414,7 +414,7 @@ class TestGenericEndpoints(unittest.TestCase):
                 rtype = int,
                 invalid = 1
             )
-        except InvalidEnpointParameterException:
+        except InvalidEnpointParameter:
             failed = True
         else:
             failed = False
@@ -439,8 +439,7 @@ class TestGenericEndpoints(unittest.TestCase):
 # ------------------------------
 #    Fire trigger Sync
 # ------------------------------
-
-    def test_FailFireTriggerSync(self):
+    def test_failFireTriggerSync(self):
         railName = "failFireTriggerSync"
         groupName = "failFireTriggerSync"
         address = f'{railName}.{groupName}'
@@ -462,15 +461,14 @@ class TestGenericEndpoints(unittest.TestCase):
             )
 
             mbus.fireTrigger(address + '.testTrigger')
-        except MissingArgument:
+        except MissingArgumentException:
             failed = True
         else:
             failed = False
 
         self.assertTrue(failed)
 
-
-    def test_FireTriggerSync(self):
+    def test_fireTriggerSync(self):
         railName = "fireTriggerSync"
         groupName = "fireTriggerSync"
         address = f'{railName}.{groupName}'
@@ -495,6 +493,43 @@ class TestGenericEndpoints(unittest.TestCase):
             result = mbus.fireTrigger(address + '.testTrigger', x = newValue)
             self.assertTrue(result)
             self.assertEqual(value[0], newValue)
+        except BusException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertFalse(failed)
+
+# ------------------------------
+#    Call event Sync
+# ------------------------------
+    def test_callEventSync(self):
+        railName = "callEventSync"
+        groupName = "callEventSync"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+
+        value = [0]
+        def testResponder(**kwargs):
+            value[0] += kwargs.get("x", 1)
+            return True
+
+        try:
+            mbus.createEndpoint(
+                address,
+                'testEvent',
+                'event',
+                responders=[testResponder, testResponder]
+            )
+
+            mbus.callEventSync(address + '.testEvent')
+            self.assertEqual(value[0], 2)
+
+            newValue = random.randint(0, 1023)
+            mbus.callEventSync(address + '.testEvent', x = newValue)
+            self.assertEqual(value[0], 2 + newValue * 2)
+
         except BusException:
             failed = True
         else:

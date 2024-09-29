@@ -29,14 +29,14 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 ### Exceptions
 | Name | Raised when | Description |
 | :--: | ----------- | :---------- |
-| RailExists | Rail is reinitialized with same name for second time |  |
-| RailAlreadyBound | Rail is alredy bound to module | |
-| RailNotFoundException | Rail is not found on bus | |
-| ModuleExisits | Module is reinitialized with same name for second time |  |
-| GroupExists | Group is reinitialized with same name for second time |  |
+| RailAlreadyExists | Rail is reinitialized with same name for second time |  |
+| RailAlreadyBound | Rail with given name is already bound to module | |
+| RailNotFoundException | rail with given name is not found in module | |
+| InvalidRailName | Rail name not meeting criteria | Rail may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` |
+| GroupAlreadyExists | Group with provided name does already exist |  |
+| InvalidGroupName | Group name not meeting criteria | Group may contain letters from ``a-Z``, numbers ``0-9`` | 
 | GroupNotFound | Group is not found on target |  |
 | EndpointNotFound | Ednpoint is not found on target |  |
-| GroupColisionWithEndpoint | Group is colliding with existing endpoint |  |
 | EndpointGroupCollision | Endpoint is colliding with existing group |  |
 | EndpointAlreadyExists | Endpoint is reinitialized with same name for second time |  |
 | InvalidEndpointParameter | Trying to use parameter that is not compatibile with given type of endpoint |
@@ -44,8 +44,6 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | InvalidFieldValueType | Field is set with variable type different from the field type | |
 | InvalidEndpointType | Provided type is not a valid endpoint type |
 | CanNotCreateEndpointOnRailException | Self explained |
-| InvalidRailName | Rail name not meeting criteria | Rail may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` |
-| InvalidGroupName | Group name not meeting criteria | Group may contain letters from ``a-Z``, numbers ``0-9`` | 
 | InvalidEndpointName | Endpoint name not meeting criteria | Endpoint may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` | 
 | MissingArgument | Endpoint triggered with missing required argument |  |
 | UnknownArgument | Endpoint triggered with extra argument | Extra argument is not presend in endpoint definition | | ProcessingFailed | Processing for endpoint failed | When listener function for endpoint fails to process data |
