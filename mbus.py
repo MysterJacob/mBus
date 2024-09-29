@@ -1,5 +1,7 @@
 import re
 import inspect
+from dataclasses import dataclass
+from typing import Union
 
 class BusException(Exception):
     def __init__(self, message) -> None:
@@ -25,39 +27,68 @@ class RailNotFoundExceptionException(BusException):
 
 RAIL_NAME_REGEX = '^([A-z])([A-z]|[0-9]|_)*$'
 
+@dataclass
+class busEndpoint:
+    pass
+
+@dataclass
+class busGroup:
+    groupName : str
+    groups : list['busGroup']
+    endpoints : list[busEndpoint]
+
+    def __hash__(self) -> int:
+        return hash(self.groupName)
+
+@dataclass
+class busRail:
+    railName : str
+    groups : list[busGroup]
+    boundModule : Union[str, None]
+
+    def __hash__(self) -> int:
+        return hash(self.railName)
+
 class __mBusSingleton:
     def __init__(self) -> None:
-        self.__rails : set[str] = set()
-        self.__railsBindsToModules : dict[str, str] = {}
+        self.__rails : dict[str, busRail] = {}
+        self.__railsBindsToModules : dict[str, busRail] = {}
 
     def __isRailNameInvalid(self, railName : str) -> bool:
         return re.fullmatch(RAIL_NAME_REGEX, railName) is None
 
+    def __railExists(self, railName : str):
+        return railName in self.__rails.keys()
+
     def __bindModuleToRail(self, railName : str):
-        if not railName in self.__rails:
+        if not self.__railExists(railName):
             raise RailNotFoundExceptionException(f"Rail {railName} is not found on bus")
 
-        if railName in self.__railsBindsToModules.keys():
-            raise RailAlreadyBoundException(f"Rail {railName} is already bound to module {self.__railsBindsToModules[railName]}")
+        rail = self.__rails[railName]
+
+        if not self.__rails[railName].boundModule is None:
+            raise RailAlreadyBoundException(f"Rail {railName} is already bound to module {rail.boundModule}")
 
         moduleName = inspect.stack()[2][0].f_locals["self"].__class__.__name__
 
-        self.__railsBindsToModules.update({railName : moduleName})
+        rail.boundModule = moduleName
+        self.__railsBindsToModules[moduleName] = rail
 
     def registerRail(self, railName : str, bindToModule : bool = False) -> None:
         if self.__isRailNameInvalid(railName):
             raise InvalidRailNameException(f"Rail name {railName} is not vaild name for rail")
 
-        if railName in self.__rails:
+        if self.__railExists(railName):
             raise RailExistsException(f"Rail name {railName} is already registered")
 
-        self.__rails.add(railName)
+        newRail = busRail(railName, [], None)
+        self.__rails.update({railName : newRail})
 
         if bindToModule:
             self.__bindModuleToRail(railName)
 
     def getRails(self) -> set[str]:
-        return self.__rails.copy()
+        return set(rail.railName for rail in self.__rails.values())
 
     def bindModuleToRail(self, railName : str) -> None:
         self.__bindModuleToRail(railName)
