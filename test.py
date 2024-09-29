@@ -1,8 +1,9 @@
 #!/bin/env python3
 from logging import exception
 import unittest
-from mbus import BusException, GroupExistsException, GroupNotFoundException, InvalidEnpointParameterException, InvalidFieldValueType, InvalidGroupNameException, InvalidRailNameException, MissingEndpointParameter, RailAlreadyBoundException, RailExistsException, RailNotFoundException
+from mbus import BusException, GroupExistsException, GroupNotFoundException, InvalidEnpointParameterException, InvalidFieldValueType, InvalidGroupNameException, InvalidRailNameException, MissingArgument, MissingEndpointParameter, RailAlreadyBoundException, RailExistsException, RailNotFoundException
 from mbus import mbus
+import random
 
 class mBusSingleton(unittest.TestCase):
     def test_getBus(self):
@@ -434,6 +435,72 @@ class TestGenericEndpoints(unittest.TestCase):
             failed = False
 
         self.assertTrue(failed)
+
+# ------------------------------
+#    Fire trigger Sync
+# ------------------------------
+
+    def test_FailFireTriggerSync(self):
+        railName = "failFireTriggerSync"
+        groupName = "failFireTriggerSync"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+
+        value = [0]
+        def testResponder(x : int):
+            value[0] = x
+            return True
+
+        try:
+            mbus.createEndpoint(
+                address,
+                'testTrigger',
+                'trigger',
+                arguments={"x" : int},
+                responder=testResponder
+            )
+
+            mbus.fireTrigger(address + '.testTrigger')
+        except MissingArgument:
+            failed = True
+        else:
+            failed = False
+
+        self.assertTrue(failed)
+
+
+    def test_FireTriggerSync(self):
+        railName = "fireTriggerSync"
+        groupName = "fireTriggerSync"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+
+        value = [0]
+        def testResponder(x : int):
+            value[0] = x
+            return True
+
+        try:
+            mbus.createEndpoint(
+                address,
+                'testTrigger',
+                'trigger',
+                arguments={"x" : int},
+                responder=testResponder
+            )
+
+            newValue = random.randint(0, 1023)
+            result = mbus.fireTrigger(address + '.testTrigger', x = newValue)
+            self.assertTrue(result)
+            self.assertEqual(value[0], newValue)
+        except BusException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertFalse(failed)
 
 if __name__ == "__main__":
     unittest.main()

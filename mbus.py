@@ -2,6 +2,7 @@ import re
 import inspect
 from dataclasses import dataclass
 from typing import Any, Callable, Union
+from threading import Lock
 
 class BusException(Exception):
     def __init__(self, message) -> None:
@@ -34,6 +35,9 @@ class GroupExistsException(BusException):
 class GroupNotFoundException(BusException):
     '''Exception thrown when group is not found on target'''
 
+class EndpointNotFound(BusException):
+    '''Exception thrown when endpoint is not found on target'''
+
 class EndpointGroupCollisionException(BusException):
     '''Exception thrown when endpoint is colliding with existing group'''
 
@@ -57,6 +61,18 @@ class InvalidEnpointNameExecption(BusException):
 
 class CanNotCreateEndpointOnRailException(BusException):
     '''Exception thrown when user tries to create endpoint on rail'''
+
+class MissingArgument(BusException):
+    '''Endpoint triggered with missing required argument'''
+
+class UnknownArgument(BusException):
+    '''Endpoint triggered with extra argument'''
+
+class FireTriggerFailed(BusException):
+    '''Trigger fire failed'''
+
+class InvalidTrigger(BusException):
+    '''Trying to fire something that is not a trigger'''
 
 RAIL_NAME_REGEX = '^([A-Z]|[a-z])([A-Z]|[a-z]|[0-9]|_)*$'
 def isRailNameInvalid(railName : str) -> bool:
@@ -106,7 +122,8 @@ class busGroup:
         return self.groups[groupName]
 
     def getEndpoint(self, endpointName : str) -> busEndpoint:
-        if not endpointName in self.endpoints.keys(): raise GroupNotFoundException(f'Group {endpointName} is not found in group {self.groupName}')
+        if not endpointName in self.endpoints.keys(): 
+            raise EndpointNotFound(f'Endpoint {endpointName} is not found in group {self.groupName}')
 
         return self.endpoints[endpointName]
 
@@ -238,6 +255,7 @@ class busRail:
 
 class __mBusSingleton:
     def __init__(self) -> None:
+        self.__mutex = Lock()
         self.__rails : dict[str, busRail] = {}
         self.__railsBindsToModules : dict[str, busRail] = {}
 
@@ -281,7 +299,6 @@ class __mBusSingleton:
 
     def __getGroupFromAddresses(self, addresses : list[str]) -> busRail | busGroup:
         railName, *groupNames = addresses
-        groupNamesLen = len(groupNames)
         finalElement = self.__getRail(railName)
 
         for groupName in groupNames:
@@ -311,6 +328,21 @@ class __mBusSingleton:
             return finalElement.getGroup(finalElementName)
 
         return finalElement.getEndpoint(finalElementName) #type: ignore
+
+    def __getEnpointFromAddresses(self, addresses : list[str]) -> busEndpoint:
+        if len(addresses) <= 2:
+            raise EndpointNotFound(f"Enpoint not found on address {'.'.join(addresses)})")
+
+        railName, *groupNames, endpointName = addresses
+        finalElement = self.__getRail(railName)
+
+        for groupName in groupNames:
+            finalElement = finalElement.getGroup(groupName)
+
+        return finalElement.getEndpoint(endpointName) #type: ignore
+
+    def __getEnpointFromAddress(self, address : str) -> busEndpoint:
+        return self.__getEnpointFromAddresses(address.split('.'))
 
     def __getElementFromAddress(self, address : str) -> busRail | busGroup | busEndpoint:
         return self.__getElementFromAddresses(address.split('.'))
@@ -355,5 +387,32 @@ class __mBusSingleton:
         lastElementName = groupAddress[-1]
 
         return lastElementName in lastElement.groups.keys() or lastElementName in lastElement.endpoints.keys() # type: ignore
+
+    def __checkArguments(self, endpointRequiredArguments : dict, endpointArguments : dict):
+        endpointArgumentsSet = set(endpointArguments.keys())
+        endpointRequiredArgumentsSet = set(endpointRequiredArguments.keys())
+
+        difference = endpointArgumentsSet - endpointRequiredArgumentsSet
+        if len(difference) > 0:
+            raise UnknownArgument(f"Unknown endpoint argument {difference.pop()}")
+
+        difference = endpointRequiredArgumentsSet - endpointArgumentsSet
+        if len(difference) > 0:
+            raise MissingArgument(f"Missing endpoint argument {difference.pop()}")
+
+
+    def __fireTriggerWithMutex(self, address : str, **kwargs) -> bool:
+        endpoint = self.__getEnpointFromAddress(address)
+        if not isinstance(endpoint, busTrigger):
+            raise InvalidTrigger(f'Invalid trigger {address}')
+
+        self.__checkArguments(endpoint.arguments, kwargs)
+
+        return endpoint.endpointDelegate(**kwargs)
+
+
+    def fireTrigger(self, address : str, **kwargs) -> bool:
+        with self.__mutex:
+            return self.__fireTriggerWithMutex(address, **kwargs)
 
 mbus = __mBusSingleton()

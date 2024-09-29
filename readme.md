@@ -5,9 +5,9 @@
 - ### Trigger
 Simple trigger. Has one responder. Triggered with arguments. Arguments must be strictly defined. May success or fail.
 - ### Event
-Trigger with multiple responders. Triggered with arguments. Arguments are loosely defined. Does not return any value. 
+Trigger with multiple responders. Triggered with arguments. Arguments are loosely defined. Does not return any value.
 - ### Field
-Simple field. Has type and value. Value can be get or set. May have change listeners.
+Simple field. Has type and value. Value can be get or set.
 - ### Action
 More advanced endpoint. Has one responder. Triggered with arguments. Arguments must be strictly defined. Returns output value.
 
@@ -35,6 +35,7 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | ModuleExisits | Module is reinitialized with same name for second time |  |
 | GroupExists | Group is reinitialized with same name for second time |  |
 | GroupNotFound | Group is not found on target |  |
+| EndpointNotFound | Ednpoint is not found on target |  |
 | GroupColisionWithEndpoint | Group is colliding with existing endpoint |  |
 | EndpointGroupCollision | Endpoint is colliding with existing group |  |
 | EndpointAlreadyExists | Endpoint is reinitialized with same name for second time |  |
@@ -44,7 +45,8 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | InvalidEndpointType | Provided type is not a valid endpoint type |
 | CanNotCreateEndpointOnRailException | Self explained |
 | InvalidRailName | Rail name not meeting criteria | Rail may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` |
-| InvalidGroupName | Group name not meeting criteria | Group may contain letters from ``a-Z``, numbers ``0-9`` | | InvalidEndpointName | Endpoint name not meeting criteria | Endpoint may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` | 
+| InvalidGroupName | Group name not meeting criteria | Group may contain letters from ``a-Z``, numbers ``0-9`` | 
+| InvalidEndpointName | Endpoint name not meeting criteria | Endpoint may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` | 
 | MissingArgument | Endpoint triggered with missing required argument |  |
 | UnknownArgument | Endpoint triggered with extra argument | Extra argument is not presend in endpoint definition | | ProcessingFailed | Processing for endpoint failed | When listener function for endpoint fails to process data |
 | FireTriggerFailed | Trigger fire failed |
@@ -112,8 +114,18 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 <details>
 <summary>To-Do List</summary>
 
-- [ ] Create enpoints with parameters
+- [x] Create enpoints with parameters
     - [x] Triggers
+    - [x] Events
+    - [x] Fields
+    - [x] Action
+- [ ] Fire endpoints sync
+    - [x] Triggers
+    - [ ] Events
+    - [ ] Fields
+    - [ ] Action
+- [ ] Fire endpoints async
+    - [ ] Triggers
     - [ ] Events
     - [ ] Fields
     - [ ] Action
