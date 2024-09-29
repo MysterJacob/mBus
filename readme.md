@@ -29,15 +29,17 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 ### Exceptions
 | Name | Raised when | Description |
 | :--: | ----------- | :---------- |
-| BusReinitialize | Bus is reinitialized with same name for second time |  |
+| RailExists | Rail is reinitialized with same name for second time |  |
+| RailAlreadyBound | Rail is alredy bound to module | |
+| RailNotFoundException | Rail is not found on bus | |
 | ModuleExisits | Module is reinitialized with same name for second time |  |
 | GroupExists | Group is reinitialized with same name for second time |  |
 | EndpointAlreadyExists | Endpoint is reinitialized with same name for second time |  |
 | InvalidEndpointParameter | Trying to use parameter that is not compatibile with given type of endpoint |
 | InvalidEnpointType | Provided type is not a valid endpoint type |
-| InvalidRailName | Rail name not meeting criteria | Rail may contain letters from ``a-z``, numbers ``0-9``, special characters ``_`` |
-| InvalidGroupName | Group name not meeting criteria | Group may contain letters from ``a-z``, numbers ``0-9``, special characters ``_`` |
-| InvalidEndpointName | Endpoint name not meeting criteria | Group may contain letters from ``a-z``, numbers ``0-9``, special characters ``_`` |
+| InvalidRailName | Rail name not meeting criteria | Rail may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` |
+| InvalidGroupName | Group name not meeting criteria | Group may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` |
+| InvalidEndpointName | Endpoint name not meeting criteria | Group may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` |
 | MissingArgument | Endpoint triggered with missing required argument |  |
 | UnknownArgument | Endpoint triggered with extra argument | Extra argument is not presend in endpoint definition | | ProcessingFailed | Processing for endpoint failed | When listener function for endpoint fails to process data |
 | FireTriggerFailed | Trigger fire failed |
@@ -54,6 +56,7 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | Name | Arguments | Return value | Description |
 | :--: | ------------------ | :----------: | :---------- |
 | registerRail | railName : str<br>bindToModule : bool = False | None | Creates a rail. If ``bindtoModule`` is set to True all further functions from this module will execute with this rail as default |
+| getRails | None | rails : set[str] | Get lists of available rails |
 | bindModuleToRail | railName : str | None | Binds module to rail |
 | createGroup | address : str<br>groupName : str | None | Registers a new group for given address |
 | createEndpoint | groupAdress : str<br>endpointName : str<br>endpointType : str<br>responder<br>**endpointParameters| None | Registers a new group for given endpoint |
@@ -68,4 +71,3 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | getFieldValueAsync | address : str | value : Any | Asynchronously gets value of field at given address |
 | callAction | address : str<br>*args<br>**kwargs | value : Any | Call an event on endpoint with arguments |
 | callActionAsync | address : str<br>*args<br>**kwargs | value : Any | Asynchronously calls an event on endpoint with arguments |
-| getRails | None | rails : list[str] | Get lists of available rails |
