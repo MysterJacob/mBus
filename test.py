@@ -1,7 +1,7 @@
 #!/bin/env python3
 from logging import exception
 import unittest
-from mbus import BusException, GroupExistsException, GroupNotFoundException, InvalidEnpointParameterException, InvalidGroupNameException, InvalidRailNameException, MissingEndpointParameter, RailAlreadyBoundException, RailExistsException, RailNotFoundException
+from mbus import BusException, GroupExistsException, GroupNotFoundException, InvalidEnpointParameterException, InvalidFieldValueType, InvalidGroupNameException, InvalidRailNameException, MissingEndpointParameter, RailAlreadyBoundException, RailExistsException, RailNotFoundException
 from mbus import mbus
 
 class mBusSingleton(unittest.TestCase):
@@ -194,6 +194,9 @@ class TestGenericEndpoints(unittest.TestCase):
 
             self.assertTrue(failed)
 
+# ------------------------------
+#    Trigger
+# ------------------------------
     def test_CreatingTrigger(self):
         railName = "creatingTrigger"
         groupName = "creatingTrigger"
@@ -236,6 +239,195 @@ class TestGenericEndpoints(unittest.TestCase):
         mbus.createGroup(address)
         try:
             mbus.createEndpoint(address, 'testTrigger', 'trigger')
+        except MissingEndpointParameter:
+            failed = True
+        else:
+            failed = False
+
+        self.assertTrue(failed)
+
+# ------------------------------
+#    Event
+# ------------------------------
+    def test_CreatingEvent(self):
+        railName = "creatingEvent"
+        groupName = "creatingEvent"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        try:
+            mbus.createEndpoint(
+                address, 'testEvent', 
+                'event', responders = lambda x : x
+            )
+        except BusException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertFalse(failed)
+
+    def test_CreatingEventWithArgumentsInvalid(self):
+        railName = "creatingEventWArgumentsI"
+        groupName = "creatingEventWArgumentsI"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        try:
+            mbus.createEndpoint(
+                address, 'testEvent', 
+                'event', responders = lambda x : x, invalid=1)
+        except InvalidEnpointParameterException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertTrue(failed)
+
+    def test_CreatingEventWithArgumentsMissing(self):
+        railName = "creatingEventWArgumentsM"
+        groupName = "creatingEventWArgumentsM"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        try:
+            mbus.createEndpoint(address, 'testEvent', 'event')
+        except MissingEndpointParameter:
+            failed = True
+        else:
+            failed = False
+
+        self.assertTrue(failed)
+
+# ------------------------------
+#    Field
+# ------------------------------
+    def test_CreatingField(self):
+        railName = "creatingField"
+        groupName = "creatingField"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        try:
+            mbus.createEndpoint(
+                address, 'testField', 
+                'field',
+                type=int, value=0
+            )
+        except BusException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertFalse(failed)
+
+    def test_CreatingFieldWithArgumentsInvalid(self):
+        railName = "creatingFieldWArgumentsI"
+        groupName = "creatingFieldWArgumentsI"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        try:
+            mbus.createEndpoint(
+                address, 'testField', 
+                'field', 
+                type=int, value=0, invalid=1
+            )
+        except InvalidEnpointParameterException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertTrue(failed)
+
+    def test_CreatingFieldWithArgumentsTypeInvalid(self):
+        railName = "creatingFieldWArgumentsTI"
+        groupName = "creatingFieldWArgumentsTI"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        try:
+            mbus.createEndpoint(
+                address, 'testField', 
+                'field', 
+                type=int, value="invalidInt"
+            )
+        except InvalidFieldValueType:
+            failed = True
+        else:
+            failed = False
+
+        self.assertTrue(failed)
+
+    def test_CreatingFieldWithArgumentsMissing(self):
+        railName = "creatingFieldWArgumentsM"
+        groupName = "creatingFieldWArgumentsM"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        try:
+            mbus.createEndpoint(address, 'testField', 'field')
+        except MissingEndpointParameter:
+            failed = True
+        else:
+            failed = False
+
+        self.assertTrue(failed)
+
+# ------------------------------
+#    Action
+# ------------------------------
+    def test_CreatingAction(self):
+        railName = "creatingAction"
+        groupName = "creatingAction"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        try:
+            mbus.createEndpoint(
+                address, 'testAction', 
+                'action', 
+                responder = lambda x : x,
+                arguments = {"arg1": int, "arg2": str},
+                rtype = int
+            )
+        except BusException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertFalse(failed)
+
+    def test_CreatingActionWithArgumentsInvalid(self):
+        railName = "creatingActionWArgumentsI"
+        groupName = "creatingActionWArgumentsI"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        try:
+            mbus.createEndpoint(
+                address, 'testAction', 
+                'action', 
+                responder = lambda x : x,
+                arguments = {"arg1": int, "arg2": str},
+                rtype = int,
+                invalid = 1
+            )
+        except InvalidEnpointParameterException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertTrue(failed)
+
+    def test_CreatingActionWithArgumentsMissing(self):
+        railName = "creatingActionWArgumentsM"
+        groupName = "creatingActionWArgumentsM"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        try:
+            mbus.createEndpoint(address, 'testAction', 'action')
         except MissingEndpointParameter:
             failed = True
         else:

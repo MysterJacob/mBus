@@ -1,7 +1,7 @@
 import re
 import inspect
 from dataclasses import dataclass
-from typing import Callable, Union
+from typing import Any, Callable, Union
 
 class BusException(Exception):
     def __init__(self, message) -> None:
@@ -46,6 +46,9 @@ class InvalidEnpointParameterException(BusException):
 class MissingEndpointParameter(BusException):
     '''Missing parameter for given type of endpoint'''
 
+class InvalidFieldValueType(BusException):
+    '''Field is set with variable type different from the field type'''
+
 class InvalidEndpointTypeException(BusException):
     '''Exception thrown when provided endpoint type is not valid'''
 
@@ -72,12 +75,20 @@ class busTrigger(busEndpoint):
     endpointDelegate : Callable
     arguments : dict[str, type]
 
+@dataclass
 class busEvent(busEndpoint):
-    pass
+    endpointDelegates : list[Callable]
+
+@dataclass
 class busField(busEndpoint):
-    pass
+    type : type
+    value : Any
+
+@dataclass
 class busAction(busEndpoint):
-    pass
+    endpointDelegate : Callable
+    arguments : dict[str, type]
+    rtype : type
 
 @dataclass
 class busGroup:
@@ -126,21 +137,59 @@ class busGroup:
 
         return self.__checkParameters(endpointParameters, requiredParameters, allParameters)
 
+    def __checkParametersForEvent(self, endpointParameters : dict):
+        requiredParameters = set(["responders"])
+        allParameters = set(["responders"])
+
+        return self.__checkParameters(endpointParameters, requiredParameters, allParameters)
+
+    def __checkParametersForField(self, endpointParameters : dict):
+        requiredParameters = set(["type", "value"])
+        allParameters = set(["type", "value"])
+
+        return self.__checkParameters(endpointParameters, requiredParameters, allParameters)
+
+    def __checkParametersForAction(self, endpointParameters : dict):
+        requiredParameters = set(["responder", "arguments", "rtype"])
+        allParameters = set(["responder", "arguments", "rtype"])
+
+        return self.__checkParameters(endpointParameters, requiredParameters, allParameters)
+
     def __createTriggerEndpoint(self, endpointName, endpointParameters):
         self.__checkParametersForTrigger(endpointParameters)
         trigger = busTrigger(endpointName, endpointParameters["responder"], endpointParameters["arguments"])
         self.endpoints[endpointName] = trigger
 
     def __createEventEndpoint(self, endpointName, endpointParameters):
-        event = busEvent(endpointName)
+        self.__checkParametersForEvent(endpointParameters)
+        responders = endpointParameters["responders"]
+
+        if isinstance(responders, Callable):
+            responders = [responders]
+
+        event = busEvent(endpointName, responders)
         self.endpoints[endpointName] = event
 
     def __createFieldEndpoint(self, endpointName, endpointParameters):
-        field = busField(endpointName)
+        self.__checkParametersForField(endpointParameters)
+
+        fieldType = endpointParameters["type"]
+        fieldValue = endpointParameters["value"]
+        if not isinstance(fieldValue, fieldType):
+            raise InvalidFieldValueType(f'Value of type {type(fieldValue)} is not compatibile with type {fieldType}')
+
+        field = busField(endpointName, fieldType, fieldValue)
         self.endpoints[endpointName] = field
 
     def __createActionEndpoint(self, endpointName, endpointParameters):
-        action = busAction(endpointName)
+        self.__checkParametersForAction(endpointParameters)
+
+        action = busAction(
+            endpointName,
+            endpointParameters["responder"],
+            endpointParameters["arguments"],
+            endpointParameters["rtype"]
+        )
         self.endpoints[endpointName] = action
 
     def createEndpoint(self, endpointName : str, endpointType : str, endpointParameters):

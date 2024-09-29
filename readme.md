@@ -40,6 +40,7 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | EndpointAlreadyExists | Endpoint is reinitialized with same name for second time |  |
 | InvalidEndpointParameter | Trying to use parameter that is not compatibile with given type of endpoint |
 | MissingEndpointParameter | Missing parameter for given type of endpoint |
+| InvalidFieldValueType | Field is set with variable type different from the field type | |
 | InvalidEndpointType | Provided type is not a valid endpoint type |
 | CanNotCreateEndpointOnRailException | Self explained |
 | InvalidRailName | Rail name not meeting criteria | Rail may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` |
@@ -104,7 +105,7 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | :--: | - | :----: |
 | responder | Yes | Delegate |
 | arguments | True | dict[str, type] |
-| return value | True | type |
+| rtype | True | type |
 
 ### TODO
 
