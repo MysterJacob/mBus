@@ -7,7 +7,7 @@ Simple trigger. Has one responder. Triggered with arguments. Arguments must be s
 - ### Event
 Trigger with multiple responders. Triggered with arguments. Arguments are loosely defined. Does not return any value. 
 - ### Field
-Simple field. Has type and value. Value can be get or set. May have listeners.
+Simple field. Has type and value. Value can be get or set. May have change listeners.
 - ### Action
 More advanced endpoint. Has one responder. Triggered with arguments. Arguments must be strictly defined. Returns output value.
 
@@ -39,10 +39,11 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | EndpointGroupCollision | Endpoint is colliding with existing group |  |
 | EndpointAlreadyExists | Endpoint is reinitialized with same name for second time |  |
 | InvalidEndpointParameter | Trying to use parameter that is not compatibile with given type of endpoint |
-| InvalidEnpointType | Provided type is not a valid endpoint type |
+| MissingEndpointParameter | Missing parameter for given type of endpoint |
+| InvalidEndpointType | Provided type is not a valid endpoint type |
+| CanNotCreateEndpointOnRailException | Self explained |
 | InvalidRailName | Rail name not meeting criteria | Rail may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` |
-| InvalidGroupName | Group name not meeting criteria | Group may contain letters from ``a-Z``, numbers ``0-9`` |
-| InvalidEndpointName | Endpoint name not meeting criteria | Group may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` |
+| InvalidGroupName | Group name not meeting criteria | Group may contain letters from ``a-Z``, numbers ``0-9`` | | InvalidEndpointName | Endpoint name not meeting criteria | Endpoint may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` | 
 | MissingArgument | Endpoint triggered with missing required argument |  |
 | UnknownArgument | Endpoint triggered with extra argument | Extra argument is not presend in endpoint definition | | ProcessingFailed | Processing for endpoint failed | When listener function for endpoint fails to process data |
 | FireTriggerFailed | Trigger fire failed |
@@ -62,7 +63,7 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | getRails | None | rails : set[str] | Get lists of available rails |
 | bindModuleToRail | railName : str | None | Binds module to rail |
 | createGroup | address : str<br>groupName : str | None | Registers a new group for given address |
-| createEndpoint | groupAdress : str<br>endpointName : str<br>endpointType : str<br>responder<br>**endpointParameters| None | Registers a new group for given endpoint |
+| createEndpoint | groupAdress : str<br>endpointName : str<br>endpointType : str<br>**endpointParameters| None | Registers a new group for given endpoint |
 | addressExists | address : str | exists : bool | Check if address exists |
 | fireTrigger | address : str<br>*args<br>**kwargs | success : bool | Fire trigger on endpoint with arguments, returns state |
 | fireTriggerAsync | address : str<br>*args<br>**kwargs | success : bool | Asynchronously fire trigger on endpoint with arguments, returns state |
@@ -75,3 +76,44 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | getFieldValueAsync | address : str | value : Any | Asynchronously gets value of field at given address |
 | callAction | address : str<br>*args<br>**kwargs | value : Any | Call an event on endpoint with arguments |
 | callActionAsync | address : str<br>*args<br>**kwargs | value : Any | Asynchronously calls an event on endpoint with arguments |
+
+### Endpoint parameters
+- Trigger
+
+| Name | Required | Type |
+| :--: | - | :----: |
+| responder | Yes | Delegate |
+| arguments | True | dict[str, type] |
+
+- Event
+
+| Name | Required | Type |
+| :--: | - | :----: |
+| responders | Yes | Delegate \| list[Delegate] |
+
+- Field
+
+| Name | Required | Type |
+| :--: | - | :----: |
+| type | Yes | type |
+| value | Yes | \<type\> |
+
+- Action 
+
+| Name | Required | Type |
+| :--: | - | :----: |
+| responder | Yes | Delegate |
+| arguments | True | dict[str, type] |
+| return value | True | type |
+
+### TODO
+
+<details>
+<summary>To-Do List</summary>
+
+- [ ] Create enpoints with parameters
+    - [x] Triggers
+    - [ ] Events
+    - [ ] Fields
+    - [ ] Action
+</details>

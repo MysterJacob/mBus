@@ -1,7 +1,7 @@
 #!/bin/env python3
 from logging import exception
 import unittest
-from mbus import BusException, GroupExistsException, GroupNotFound, InvalidGroupNameException, InvalidRailNameException, RailAlreadyBoundException, RailExistsException, RailNotFoundException
+from mbus import BusException, GroupExistsException, GroupNotFoundException, InvalidEnpointParameterException, InvalidGroupNameException, InvalidRailNameException, MissingEndpointParameter, RailAlreadyBoundException, RailExistsException, RailNotFoundException
 from mbus import mbus
 
 class mBusSingleton(unittest.TestCase):
@@ -143,7 +143,7 @@ class mBusGroup(unittest.TestCase):
         mbus.registerRail(railName)
         try:
             mbus.createGroup(f"{railName}.notfound.test")
-        except GroupNotFound:
+        except GroupNotFoundException:
             failed = True
         else:
             failed = False
@@ -162,6 +162,86 @@ class mBusGroup(unittest.TestCase):
             failed = False
 
         self.assertFalse(failed)
+
+class TestGenericEndpoints(unittest.TestCase):
+    def test_NonExistingAddress(self):
+        railName = "nonexistingrail"
+        address = f'{railName}'
+        mbus.registerRail(railName)
+        try:
+            mbus.createEndpoint(address + '.nongroup', 'endpoint1', 'trigger')
+        except GroupNotFoundException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertTrue(failed)
+
+    def test_InvalidEnpointTypes(self):
+        railName = "genericFailEndpoints"
+        groupName = "genericFailGroup"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        types = ['invalid1', 'test', 'Trigger']
+        for endpointType in types:
+            try:
+                mbus.createEndpoint(address, 'endpoint1' + endpointType, endpointType)
+            except BusException:
+                failed = True
+            else:
+                failed = False
+
+            self.assertTrue(failed)
+
+    def test_CreatingTrigger(self):
+        railName = "creatingTrigger"
+        groupName = "creatingTrigger"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        try:
+            mbus.createEndpoint(
+                address, 'testTrigger', 
+                'trigger', responder = lambda x : x, arguments={"x" : int})
+        except BusException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertFalse(failed)
+
+    def test_CreatingTriggerWithArgumentsInvalid(self):
+        railName = "creatingTriggerWArgumentsI"
+        groupName = "creatingTriggerWArgumentsI"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        try:
+            mbus.createEndpoint(
+                address, 'testTrigger', 
+                'trigger', responder = lambda x : x, arguments={"x" : int}, invalid=1)
+        except InvalidEnpointParameterException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertTrue(failed)
+
+    def test_CreatingTriggerWithArgumentsMissing(self):
+        railName = "creatingTriggerWArgumentsM"
+        groupName = "creatingTriggerWArgumentsM"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+        try:
+            mbus.createEndpoint(address, 'testTrigger', 'trigger')
+        except MissingEndpointParameter:
+            failed = True
+        else:
+            failed = False
+
+        self.assertTrue(failed)
 
 if __name__ == "__main__":
     unittest.main()
