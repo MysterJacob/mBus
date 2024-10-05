@@ -74,11 +74,20 @@ class FireTriggerFailed(BusException):
 class CallEventFailed(BusException):
     '''Event call failed'''
 
+class SettingFieldFailed(BusException):
+    '''Setting a field failed'''
+
 class InvalidTrigger(BusException):
     '''Trying to fire something that is not a trigger'''
 
 class InvalidEvent(BusException):
     '''Trying to call something that is not a event'''
+
+class InvalidField(BusException):
+    '''Trying to set/get something that is not a field'''
+
+class GettingFieldFailed(BusException):
+    '''Getting a field failed'''
 
 RAIL_NAME_REGEX = '^([A-Z]|[a-z])([A-Z]|[a-z]|[0-9]|_)*$'
 def isRailNameInvalid(railName : str) -> bool:
@@ -406,21 +415,26 @@ class __mBusSingleton:
         if len(difference) > 0:
             raise MissingArgumentException(f"Missing endpoint argument {difference.pop()}")
 
+    def __fireTriggerWithMutex(self, endpoint : busTrigger, **kwargs) -> bool:
 
-    def __fireTriggerWithMutex(self, address : str, **kwargs) -> bool:
+        return endpoint.endpointDelegate(**kwargs)
+
+    def fireTrigger(self, address : str, **kwargs) -> bool:
         endpoint = self.__getEnpointFromAddress(address)
         if not isinstance(endpoint, busTrigger):
             raise InvalidTrigger(f'Invalid trigger {address}')
 
         self.__checkArguments(endpoint.arguments, kwargs)
 
-        return endpoint.endpointDelegate(**kwargs)
-
-    def fireTrigger(self, address : str, **kwargs) -> bool:
         with self.__mutex:
-            return self.__fireTriggerWithMutex(address, **kwargs)
+            return self.__fireTriggerWithMutex(endpoint, **kwargs)
 
-    def __callEventWithMutex(self, address : str, **kwargs):
+    def __callEventWithMutex(self, delegates : list[Callable], **kwargs):
+
+        for delegate in delegates:
+            delegate(**kwargs)
+
+    def callEvent(self, address : str, **kwargs):
         endpoint = self.__getEnpointFromAddress(address)
 
         if not isinstance(endpoint, busEvent):
@@ -428,11 +442,34 @@ class __mBusSingleton:
 
         delegates = endpoint.endpointDelegates
 
-        for delegate in delegates:
-            delegate(**kwargs)
-
-    def callEventSync(self, address : str, **kwargs):
         with self.__mutex:
-            self.__callEventWithMutex(address, **kwargs)
+            self.__callEventWithMutex(delegates, **kwargs)
+
+    def setFieldValue(self, address : str, value : Any):
+        endpoint = self.__getEnpointFromAddress(address)
+
+        if not isinstance(endpoint, busField):
+            raise InvalidField(f'Invalid field {address}')
+
+
+        if not isinstance(value, endpoint.type):
+            raise InvalidFieldValueType(f"Value {value} is not of type {endpoint.type}")
+
+        with self.__mutex:
+            endpoint.value = value
+
+    def getFieldValue(self, address : str) -> Any:
+        endpoint = self.__getEnpointFromAddress(address)
+
+        if not isinstance(endpoint, busField):
+            raise InvalidField(f'Invalid field {address}')
+
+        with self.__mutex:
+            value = endpoint.value
+
+        return value
+
+    def callAction(self, address : str, **kwargs) -> Any:
+        pass
 
 mbus = __mBusSingleton()

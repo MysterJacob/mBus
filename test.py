@@ -1,5 +1,4 @@
 #!/bin/env python3
-from logging import exception
 import unittest
 from mbus import BusException, GroupAlreadyExists, GroupNotFound, InvalidEnpointParameter, InvalidFieldValueType, InvalidGroupName, InvalidRailName, MissingArgumentException, MissingEndpointParameter, RailAlreadyBound, RailAlready, RailNotFound
 from mbus import mbus
@@ -523,11 +522,80 @@ class TestGenericEndpoints(unittest.TestCase):
                 responders=[testResponder, testResponder]
             )
 
-            mbus.callEventSync(address + '.testEvent')
+            mbus.callEvent(address + '.testEvent')
             self.assertEqual(value[0], 2)
 
             newValue = random.randint(0, 1023)
-            mbus.callEventSync(address + '.testEvent', x = newValue)
+            mbus.callEvent(address + '.testEvent', x = newValue)
+            self.assertEqual(value[0], 2 + newValue * 2)
+
+        except BusException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertFalse(failed)
+
+# ------------------------------
+#    Set/Get field Sync
+# ------------------------------
+    def test_getSetFieldSync(self):
+        railName = "setgetFieldSync"
+        groupName = "callEventSync"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+
+        try:
+            mbus.createEndpoint(
+                address,
+                'testField',
+                'field',
+                type=int,
+                value=0
+            )
+
+            self.assertEqual(mbus.getFieldValue(address + ".testField"), 0)
+            for i in range(100):
+                value = random.randint(0, 100)
+                mbus.setFieldValue(address + ".testField", value)
+                self.assertEqual(mbus.getFieldValue(address + ".testField"), value)
+
+        except BusException:
+            failed = True
+        else:
+            failed = False
+
+        self.assertFalse(failed)
+
+# ------------------------------
+#    Call action Sync
+# ------------------------------
+    def test_callActionSync(self):
+        railName = "callEventSync"
+        groupName = "callEventSync"
+        address = f'{railName}.{groupName}'
+        mbus.registerRail(railName)
+        mbus.createGroup(address)
+
+        value = [0]
+        def testResponder(**kwargs):
+            value[0] += kwargs.get("x", 1)
+            return True
+
+        try:
+            mbus.createEndpoint(
+                address,
+                'testEvent',
+                'event',
+                responders=[testResponder, testResponder]
+            )
+
+            mbus.callEvent(address + '.testEvent')
+            self.assertEqual(value[0], 2)
+
+            newValue = random.randint(0, 1023)
+            mbus.callEvent(address + '.testEvent', x = newValue)
             self.assertEqual(value[0], 2 + newValue * 2)
 
         except BusException:

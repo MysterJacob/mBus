@@ -49,7 +49,7 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | UnknownArgument | Endpoint triggered with extra argument | Extra argument is not presend in endpoint definition | | ProcessingFailed | Processing for endpoint failed | When listener function for endpoint fails to process data |
 | FireTriggerFailed | Trigger fire failed |
 | CallEventFailed | Calling fire failed |
-| SetingFieldFailed | Seting a field failed |
+| SettingFieldFailed | Seting a field failed |
 | GettingFieldFailed | Getting a field failed |
 | InvalidTrigger | Trying to fire something that is not a trigger |
 | InvalidEvent | Trying to call something that is not a event |
@@ -117,12 +117,12 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
     - [x] Events
     - [x] Fields
     - [x] Action
-- [ ] Fire endpoints sync
+- [ ] Endpoints sync
     - [x] Triggers
-    - [ ] Events
+    - [x] Events
     - [ ] Fields
     - [ ] Action
-- [ ] Fire endpoints async
+- [ ] Endpoints async
     - [ ] Triggers
     - [ ] Events
     - [ ] Fields
