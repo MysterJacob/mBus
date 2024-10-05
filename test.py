@@ -572,31 +572,35 @@ class TestGenericEndpoints(unittest.TestCase):
 #    Call action Sync
 # ------------------------------
     def test_callActionSync(self):
-        railName = "callEventSync"
-        groupName = "callEventSync"
+        railName = "callActionSync"
+        groupName = "callActionSync"
         address = f'{railName}.{groupName}'
         mbus.registerRail(railName)
         mbus.createGroup(address)
 
         value = [0]
-        def testResponder(**kwargs):
-            value[0] += kwargs.get("x", 1)
-            return True
+        def testResponder(x : int):
+            value[0] += x
+            return value[0] ** 2
 
         try:
             mbus.createEndpoint(
                 address,
-                'testEvent',
-                'event',
-                responders=[testResponder, testResponder]
+                'testAction',
+                'action',
+                responder=testResponder,
+                arguments={"x" : int},
+                rtype = int
             )
 
-            mbus.callEvent(address + '.testEvent')
+            result = mbus.callAction(address + '.testAction', x = 2)
             self.assertEqual(value[0], 2)
+            self.assertEqual(result, 4)
 
             newValue = random.randint(0, 1023)
-            mbus.callEvent(address + '.testEvent', x = newValue)
-            self.assertEqual(value[0], 2 + newValue * 2)
+            result = mbus.callAction(address + '.testAction', x = newValue)
+            self.assertEqual(value[0], 2 + newValue)
+            self.assertEqual(result, (2 + newValue) ** 2)
 
         except BusException:
             failed = True

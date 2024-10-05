@@ -68,11 +68,17 @@ class MissingArgumentException(BusException):
 class UnknownArgument(BusException):
     '''Endpoint triggered with extra argument'''
 
+class InvalidArgument(BusException):
+    '''Endpoint triggered with invalid argument'''
+
 class FireTriggerFailed(BusException):
     '''Trigger fire failed'''
 
 class CallEventFailed(BusException):
     '''Event call failed'''
+
+class ActionInvalidRType(BusException):
+    '''Return value type does not math provided type'''
 
 class SettingFieldFailed(BusException):
     '''Setting a field failed'''
@@ -82,6 +88,9 @@ class InvalidTrigger(BusException):
 
 class InvalidEvent(BusException):
     '''Trying to call something that is not a event'''
+
+class InvalidAction(BusException):
+    '''Trying to call something that is not a action'''
 
 class InvalidField(BusException):
     '''Trying to set/get something that is not a field'''
@@ -415,6 +424,12 @@ class __mBusSingleton:
         if len(difference) > 0:
             raise MissingArgumentException(f"Missing endpoint argument {difference.pop()}")
 
+        for (name, value) in endpointArguments.items():
+            requiredType = endpointRequiredArguments.get(name)
+            if requiredType == None: continue
+            if not isinstance(value, requiredType):
+                raise InvalidArgument(f"Argument {name} is not of type {requiredType}")
+
     def __fireTriggerWithMutex(self, endpoint : busTrigger, **kwargs) -> bool:
 
         return endpoint.endpointDelegate(**kwargs)
@@ -451,7 +466,6 @@ class __mBusSingleton:
         if not isinstance(endpoint, busField):
             raise InvalidField(f'Invalid field {address}')
 
-
         if not isinstance(value, endpoint.type):
             raise InvalidFieldValueType(f"Value {value} is not of type {endpoint.type}")
 
@@ -470,6 +484,21 @@ class __mBusSingleton:
         return value
 
     def callAction(self, address : str, **kwargs) -> Any:
-        pass
+        endpoint = self.__getEnpointFromAddress(address)
+
+        if not isinstance(endpoint, busAction):
+            raise InvalidAction(f'Invalid action {address}')
+
+        self.__checkArguments(endpoint.arguments, kwargs)
+
+        delegate = endpoint.endpointDelegate
+
+        with self.__mutex:
+            rvalue = delegate(**kwargs)
+
+        if not isinstance(rvalue, endpoint.rtype):
+            raise ActionInvalidRType(f"Returned value is not of type {endpoint.rtype}")
+
+        return rvalue
 
 mbus = __mBusSingleton()

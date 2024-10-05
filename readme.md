@@ -47,8 +47,10 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | InvalidEndpointName | Endpoint name not meeting criteria | Endpoint may contain letters from ``a-Z``, numbers ``0-9``, special characters ``_`` | 
 | MissingArgument | Endpoint triggered with missing required argument |  |
 | UnknownArgument | Endpoint triggered with extra argument | Extra argument is not presend in endpoint definition | | ProcessingFailed | Processing for endpoint failed | When listener function for endpoint fails to process data |
+| InvalidArgument | Endpoint triggered with invalid argument |  | 
 | FireTriggerFailed | Trigger fire failed |
 | CallEventFailed | Calling fire failed |
+| ActionInvalidRType | Return value type does not math provided type |
 | SettingFieldFailed | Seting a field failed |
 | GettingFieldFailed | Getting a field failed |
 | InvalidTrigger | Trying to fire something that is not a trigger |
