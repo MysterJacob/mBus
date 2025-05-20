@@ -1,9 +1,11 @@
 #!/bin/env python3
 import unittest
 from mbus import (
+    EndpointCreationError,
+    GroupCreationError,
     ModuleLoadingError,
 )
-from mbus import mbus, mbusModule
+from mbus import mBus, mbusModule
 
 # import logging
 # import sys
@@ -29,26 +31,25 @@ class InvalidNameModule(mbusModule):
 
 class mBusSingleton(unittest.TestCase):
     def test_getBus(self):
+        mbus = mBus()
         self.assertIsNot(mbus, None)
 
     def test_tryImport(self):
-        try:
-            from mbus import __mBusSingleton
-        except ImportError:
-            failed = True
-        else:
-            failed = False
+        m1 = mBus()
+        m2 = mBus()
 
-        self.assertTrue(failed)
+        self.assertIs(m1, m2)
 
 
 class mbusModules(unittest.TestCase):
     def test_simpleloading(self):
+        mbus = mBus()
         mbus.loadModule(TestModule)
         self.assertTrue(mbus.isModuleLoaded("testModule"))
         mbus.unloadModule("testModule")
 
     def test_loadingqueue(self):
+        mbus = mBus()
         mbus.loadModule(TestModule2)
         self.assertFalse(mbus.isModuleLoaded("testModule2"))
         mbus.loadModule(TestModule)
@@ -58,6 +59,7 @@ class mbusModules(unittest.TestCase):
         mbus.unloadModule("testModule2")
 
     def test_collision(self):
+        mbus = mBus()
         exception = False
         try:
             mbus.loadModule(TestModule)
@@ -72,26 +74,120 @@ class mbusModules(unittest.TestCase):
     def testInvalidName(self):
         exception = False
         try:
+            mbus = mBus()
             mbus.loadModule(InvalidNameModule)
         except ModuleLoadingError:
             exception = True
 
         self.assertTrue(exception)
 
-class mbusGroups(unittest.TestCase):
-    def test_creatingGroups(self):
-        pass
 
-    def test_creatingNestedGroups(self):
-        pass
+class GroupTestModule(mbusModule):
+    name = "groupTestModule"
+
+    def load(self, mbus: mBus):
+        group = self._createGroup("testGroup")
+        group.createGroup("insider")
+
+
+class GroupTestCollsionModule(mbusModule):
+    name = "groupTestModule"
+
+    def load(self, mbus: mBus):
+        self._createGroup("collsion")
+        self._createGroup("collsion")
+
+
+class mbusGroups(unittest.TestCase):
+    def test_addressExists(self):
+        mbus = mBus()
+        self.assertFalse(mbus.addressExisits(""))
+        self.assertFalse(mbus.addressExisits("nonexistingModule"))
+
+    def test_creatingGroups(self):
+        mbus = mBus()
+        mbus.loadModule(GroupTestModule)
+        self.assertTrue(mbus.addressExisits("groupTestModule.testGroup"))
+        self.assertTrue(
+            mbus.addressExisits("groupTestModule.testGroup.insider")
+        )
+
+    def test_collision(self):
+        mbus = mBus()
+        exception = False
+        try:
+            mbus.loadModule(GroupTestCollsionModule)
+        except GroupCreationError:
+            exception = True
+        finally:
+            self.assertTrue(exception)
+
+
+class TriggerCreatorModule(mbusModule):
+    testTriggerValue = 0
+    name = "tcm"
+
+    def load(self, mbus: mBus):
+        self._createEndpoint(
+            endpointName="trigger",
+            type="trigger",
+            callback=self.callback,
+        )
+        self._createGroup("test").createEndpoint(
+            endpointName="trigger",
+            type="trigger",
+            callback=self.callback,
+        )
+
+    def callback(self, x: int):
+        TriggerCreatorModule.testTriggerValue += x
+        return True
+
+
+class EndpointCollisionModule(mbusModule):
+    name = "ecm"
+
+    def load(self, mbus: "mBus"):
+        self._createEndpoint(
+            endpointName="collsion",
+            type="trigger",
+            callback=lambda x: print(x),
+        )
+        self._createEndpoint(
+            endpointName="collsion",
+            type="trigger",
+            callback=lambda x: print(x),
+        )
+
 
 class mbusEndpoints(unittest.TestCase):
+    def test_collision(self):
+        mbus = mBus()
+        exception = False
+        try:
+            mbus.loadModule(EndpointCollisionModule)
+        except EndpointCreationError:
+            exception = True
+        finally:
+            self.assertTrue(exception)
+
     def test_trigger(self):
-        pass
+        mbus = mBus()
+        mbus.loadModule(TriggerCreatorModule)
+        self.assertTrue(mbus.addressExisits("tcm.trigger"))
+        self.assertTrue(mbus.addressExisits("tcm.test.trigger"))
+
+        self.assertTrue(mbus.fireTrigger("tcm.trigger", 1))
+        self.assertEqual(TriggerCreatorModule.testTriggerValue, 1)
+        self.assertTrue(mbus.fireTrigger("tcm.test.trigger", 10))
+        self.assertEqual(TriggerCreatorModule.testTriggerValue, 11)
+
     def test_event(self):
         pass
+
     def test_field(self):
         pass
+
     def test_action(self):
         pass
 
