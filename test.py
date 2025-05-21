@@ -2,6 +2,7 @@
 import unittest
 from mbus import (
     EndpointCreationError,
+    FieldValueTypeError,
     GroupCreationError,
     ModuleLoadingError,
 )
@@ -60,26 +61,17 @@ class mbusModules(unittest.TestCase):
 
     def test_collision(self):
         mbus = mBus()
-        exception = False
-        try:
-            mbus.loadModule(TestModule)
-            mbus.loadModule(TestModule)
-        except ModuleLoadingError:
-            exception = True
-        finally:
-            mbus.unloadModule("testModule")
-
-            self.assertTrue(exception)
+        mbus.loadModule(TestModule)
+        self.assertRaises(
+            ModuleLoadingError, lambda: mbus.loadModule(TestModule)
+        )
+        mbus.unloadModule("testModule")
 
     def testInvalidName(self):
-        exception = False
-        try:
-            mbus = mBus()
-            mbus.loadModule(InvalidNameModule)
-        except ModuleLoadingError:
-            exception = True
-
-        self.assertTrue(exception)
+        mbus = mBus()
+        self.assertRaises(
+            ModuleLoadingError, lambda: mbus.loadModule(InvalidNameModule)
+        )
 
 
 class GroupTestModule(mbusModule):
@@ -114,13 +106,9 @@ class mbusGroups(unittest.TestCase):
 
     def test_collision(self):
         mbus = mBus()
-        exception = False
-        try:
-            mbus.loadModule(GroupTestCollsionModule)
-        except GroupCreationError:
-            exception = True
-        finally:
-            self.assertTrue(exception)
+        self.assertRaises(
+            GroupCreationError, lambda: mbus.loadModule(GroupTestCollsionModule)
+        )
 
 
 class TriggerCreatorModule(mbusModule):
@@ -177,24 +165,46 @@ class EventTriggerModule(mbusModule):
     name = "etm"
 
     def load(self, mbus: "mBus"):
-        self._createEndpoint(endpointName="event", type="event", responders=set())
-        self._createEndpoint(endpointName="trigger", type="trigger", callback=self.callback)
+        self._createEndpoint(endpointName="event", type="event")
+        self._createEndpoint(
+            endpointName="trigger", type="trigger", callback=self.callback
+        )
 
     def callback(self, *args, **kwargs):
         self._callEvent("event")
         self._callEvent("event", mul=5)
 
 
+class FieldTestModule(mbusModule):
+    testValue = 0
+    name = "ftm"
+
+    def load(self, mbus: "mBus"):
+        self._createEndpoint(
+            endpointName="testField",
+            type="field",
+            fieldType=int,
+            value=5,
+            onChangeCallback=self.onChangeCallback,
+        )
+        self._createEndpoint(
+            endpointName="tryset", type="trigger", callback=self.tryset
+        )
+
+    def tryset(self, x):
+        self._setFieldValue("testField", x)
+
+    def onChangeCallback(self, value):
+        FieldTestModule.testValue = value
+
+
 class mbusEndpoints(unittest.TestCase):
     def test_collision(self):
         mbus = mBus()
-        exception = False
-        try:
-            mbus.loadModule(EndpointCollisionModule)
-        except EndpointCreationError:
-            exception = True
-        finally:
-            self.assertTrue(exception)
+        self.assertRaises(
+            EndpointCreationError,
+            lambda: mbus.loadModule(EndpointCollisionModule),
+        )
 
     def test_trigger(self):
         mbus = mBus()
@@ -220,7 +230,23 @@ class mbusEndpoints(unittest.TestCase):
         self.assertEqual(EventRegisterModule.testValue, 100)
 
     def test_field(self):
-        pass
+        mbus = mBus()
+        mbus.loadModule(FieldTestModule)
+
+        valueList = []
+        mbus.addFieldChangeCallback("ftm.testField", valueList.append)
+
+        self.assertTrue(mbus.addressExisits("ftm.testField"))
+
+        mbus.fireTrigger("ftm.tryset", 20)
+
+        self.assertEqual(mbus.getValue("ftm.testField"), 20)
+        self.assertEqual(FieldTestModule.testValue, 20)
+        self.assertEqual(valueList[-1], 20)
+
+        self.assertRaises(
+            FieldValueTypeError, lambda: mbus.fireTrigger("ftm.tryset", "tryset")
+        )
 
     def test_action(self):
         pass

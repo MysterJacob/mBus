@@ -1,5 +1,5 @@
 import re
-from typing import Callable, Union
+from typing import Any, Callable, Union
 import logging
 
 
@@ -32,6 +32,10 @@ class EndpointCreationError(BusException):
 
 class EndpointeCallError(BusException):
     """Error while calling an endpoint"""
+
+
+class FieldValueTypeError(BusException):
+    """Trying to set value with different type than expected in the field"""
 
 
 MODULE_NAME_REGEX = "^([A-Z]|[a-z])([A-Z]|[a-z]|[0-9]|_)*$"
@@ -82,11 +86,7 @@ class busEvent(busEndpoint):
     __responders: set[Callable]
 
     def __init__(self, name: str, owner: "mbusModule", **kwargs):
-        if "responders" not in kwargs:
-            raise EndpointCreationError(
-                """Missing required argument <responders> for trigger endpoint"""
-            )
-        responders = kwargs["responders"]
+        responders = kwargs.get("responders", set())
         self.name = name
         self.owner = owner
         self.__responders = responders
@@ -97,6 +97,49 @@ class busEvent(busEndpoint):
     def call(self, *args, **kwargs):
         for responder in self.__responders:
             responder(*args, **kwargs)
+
+
+class busField(busEndpoint):
+    __fieldValue: Any
+    __fieldType: type
+    __onChangeCallbacks: set[Callable]
+
+    def __init__(self, name: str, owner: "mbusModule", **kwargs):
+        if "fieldType" not in kwargs:
+            raise EndpointCreationError(
+                """Missing required argument <fieldType> for trigger endpoint"""
+            )
+        if "value" not in kwargs:
+            raise EndpointCreationError(
+                """Missing required argument <value> for trigger endpoint"""
+            )
+
+        self.name = name
+        self.owner = owner
+        self.__onChangeCallbacks = set()
+        if "onChangeCallback" in kwargs:
+            self.__onChangeCallbacks.add(kwargs["onChangeCallback"])
+        self.__fieldType = kwargs["fieldType"]
+        self.setValue(kwargs["value"])
+
+    def setValue(self, value: Any):
+        if not isinstance(value, self.__fieldType):
+            raise FieldValueTypeError(
+                f"""Value <{value}> of type <{type(value)}> found, <{self.__fieldType}> expected."""
+            )
+
+        self.__fieldValue = value
+        self.__makeCallback()
+
+    def __makeCallback(self):
+        for callback in self.__onChangeCallbacks:
+            callback(self.__fieldValue)
+
+    def addOnChangeCallback(self, callback: Callable):
+        self.__onChangeCallbacks.add(callback)
+
+    def getValue(self):
+        return self.__fieldValue
 
 
 class busGroup:
@@ -125,12 +168,15 @@ class mbusModule:
     dependencies: set[str] = set()
     _createGroup: Callable[[str], "busGroup"]
     _createEndpoint: Callable
+    _callEvent: Callable
+    _setFieldValue: Callable
 
     def __init__(self, mbus: "mBus", **kwargs) -> None:
         self.mbus = mbus
         self._createGroup = kwargs["createGroup"]
         self._createEndpoint = kwargs["createEndpoint"]
         self._callEvent = kwargs["callEvent"]
+        self._setFieldValue = kwargs["setFieldValue"]
 
     def load(self, mbus: "mBus"):
         pass
@@ -174,9 +220,13 @@ def endpointCreator(
             moduleGroups[endpointName] = newTrigger
             return newTrigger
         case "event":
-            newTrigger = busEvent(endpointName, owner, **kwargs)
-            moduleGroups[endpointName] = newTrigger
-            return newTrigger
+            newEvent = busEvent(endpointName, owner, **kwargs)
+            moduleGroups[endpointName] = newEvent
+            return newEvent
+        case "field":
+            newField = busField(endpointName, owner, **kwargs)
+            moduleGroups[endpointName] = newField
+            return newField
 
         case None:
             raise EndpointCreationError(
@@ -264,6 +314,20 @@ class mBus(object):
 
         event.call(*args, **kwargs)
 
+    def __setValue(self, module: mbusModule, address: str, value):
+        field = self.__findEndpoint(module.name + "." + address)
+        if not isinstance(field, busField):
+            raise EndpointeCallError(
+                f"""Endpoint on address <{address}> is not a field"""
+            )
+
+        if field.owner is not module:
+            raise EndpointeCallError(
+                f"""Field <{address}> has been set not by owning module"""
+            )
+
+        field.setValue(value)
+
     def __loadModule(self, module: type[mbusModule]):
         if module.name in self.__loadedModules:
             raise ModuleLoadingError(
@@ -279,6 +343,9 @@ class mBus(object):
             ),
             callEvent=lambda address, *args, **kwargs: self.__callEvent(
                 moduleInstance, address, *args, **kwargs
+            ),
+            setFieldValue=lambda address, value: self.__setValue(
+                moduleInstance, address, value
             ),
         )
         self.__loadedModules[module.name] = moduleInstance
@@ -354,3 +421,21 @@ class mBus(object):
             )
 
         event.addEventListener(listener)
+
+    def getValue(self, address: str):
+        field = self.__findEndpoint(address)
+        if not isinstance(field, busField):
+            raise EndpointeCallError(
+                f"""Endpoint on address <{address}> is not a field"""
+            )
+
+        return field.getValue()
+
+    def addFieldChangeCallback(self, address: str, callback: Callable):
+        field = self.__findEndpoint(address)
+        if not isinstance(field, busField):
+            raise EndpointeCallError(
+                f"""Endpoint on address <{address}> is not a field"""
+            )
+
+        field.addOnChangeCallback(callback)
