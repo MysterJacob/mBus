@@ -160,6 +160,31 @@ class EndpointCollisionModule(mbusModule):
         )
 
 
+# Trigger with multiple responders. Triggered with arguments. Arguments are loosely defined. Does not return any value.
+class EventRegisterModule(mbusModule):
+    name = "erm"
+    dependencies = {"etm"}
+    testValue = 1
+
+    def load(self, mbus: "mBus"):
+        mbus.addEventListener("etm.event", self.callback)
+
+    def callback(self, *args, **kwargs):
+        EventRegisterModule.testValue *= kwargs.get("mul", 2)
+
+
+class EventTriggerModule(mbusModule):
+    name = "etm"
+
+    def load(self, mbus: "mBus"):
+        self._createEndpoint(endpointName="event", type="event", responders=set())
+        self._createEndpoint(endpointName="trigger", type="trigger", callback=self.callback)
+
+    def callback(self, *args, **kwargs):
+        self._callEvent("event")
+        self._callEvent("event", mul=5)
+
+
 class mbusEndpoints(unittest.TestCase):
     def test_collision(self):
         mbus = mBus()
@@ -183,7 +208,16 @@ class mbusEndpoints(unittest.TestCase):
         self.assertEqual(TriggerCreatorModule.testTriggerValue, 11)
 
     def test_event(self):
-        pass
+        mbus = mBus()
+        mbus.loadModule(EventRegisterModule)
+        mbus.loadModule(EventTriggerModule)
+        self.assertEqual(EventRegisterModule.testValue, 1)
+        self.assertTrue(mbus.addressExisits("etm.event"))
+        self.assertTrue(mbus.addressExisits("etm.trigger"))
+        mbus.fireTrigger("etm.trigger")
+        self.assertEqual(EventRegisterModule.testValue, 10)
+        mbus.fireTrigger("etm.trigger")
+        self.assertEqual(EventRegisterModule.testValue, 100)
 
     def test_field(self):
         pass

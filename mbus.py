@@ -78,6 +78,27 @@ class busTrigger(busEndpoint):
             )
 
 
+class busEvent(busEndpoint):
+    __responders: set[Callable]
+
+    def __init__(self, name: str, owner: "mbusModule", **kwargs):
+        if "responders" not in kwargs:
+            raise EndpointCreationError(
+                """Missing required argument <responders> for trigger endpoint"""
+            )
+        responders = kwargs["responders"]
+        self.name = name
+        self.owner = owner
+        self.__responders = responders
+
+    def addEventListener(self, listener: Callable):
+        self.__responders.add(listener)
+
+    def call(self, *args, **kwargs):
+        for responder in self.__responders:
+            responder(*args, **kwargs)
+
+
 class busGroup:
     groupName: str
     __subBus: dict[str, Union["busGroup", "busEndpoint"]]
@@ -109,6 +130,7 @@ class mbusModule:
         self.mbus = mbus
         self._createGroup = kwargs["createGroup"]
         self._createEndpoint = kwargs["createEndpoint"]
+        self._callEvent = kwargs["callEvent"]
 
     def load(self, mbus: "mBus"):
         pass
@@ -149,6 +171,10 @@ def endpointCreator(
     match kwargs.get("type"):
         case "trigger":
             newTrigger = busTrigger(endpointName, owner, **kwargs)
+            moduleGroups[endpointName] = newTrigger
+            return newTrigger
+        case "event":
+            newTrigger = busEvent(endpointName, owner, **kwargs)
             moduleGroups[endpointName] = newTrigger
             return newTrigger
 
@@ -224,6 +250,20 @@ class mBus(object):
         moduleGroups = self.__bus[module.name]
         return endpointCreator(moduleGroups, module, endpointName, **kwargs)
 
+    def __callEvent(self, module: mbusModule, address: str, *args, **kwargs):
+        event = self.__findEndpoint(module.name + "." + address)
+        if not isinstance(event, busEvent):
+            raise EndpointeCallError(
+                f"""Endpoint on address <{address}> is not a event"""
+            )
+
+        if event.owner is not module:
+            raise EndpointeCallError(
+                f"""Event <{address}> has been called not by owning module"""
+            )
+
+        event.call(*args, **kwargs)
+
     def __loadModule(self, module: type[mbusModule]):
         if module.name in self.__loadedModules:
             raise ModuleLoadingError(
@@ -236,6 +276,9 @@ class mBus(object):
             ),
             createEndpoint=lambda endpointName, **kwargs: self.__createEndpoint(
                 moduleInstance, endpointName, **kwargs
+            ),
+            callEvent=lambda address, *args, **kwargs: self.__callEvent(
+                moduleInstance, address, *args, **kwargs
             ),
         )
         self.__loadedModules[module.name] = moduleInstance
@@ -302,3 +345,12 @@ class mBus(object):
             )
 
         return trigger.trigger(*args, **kwargs)
+
+    def addEventListener(self, address: str, listener):
+        event = self.__findEndpoint(address)
+        if not isinstance(event, busEvent):
+            raise EndpointeCallError(
+                f"""Endpoint on address <{address}> is not a event"""
+            )
+
+        event.addEventListener(listener)

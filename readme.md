@@ -37,8 +37,6 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | addressExists | address : str | exists : bool | Check if address exists |
 | fireTrigger | address : str<br>*args<br>**kwargs | success : bool | Fire trigger on endpoint with arguments, returns state |
 | fireTriggerAsync | address : str<br>*args<br>**kwargs | success : bool | Asynchronously fire trigger on endpoint with arguments, returns state |
-| callEvent | address : str<br>*args<br>**kwargs | None | Call an event on endpoint with arguments |
-| callEventAsync | address : str<br>*args<br>**kwargs | None | Asynchronously calls an event on endpoint with arguments |
 | addEventListener | address : str<br>listener | None | Add event listener for event at given address |
 | setFieldValue | address : str<br>value : Any | None | Sets value for field at given addres |
 | setFieldValueAsync | address : str<br>value : Any | None | Asynchronously sets value for field at given addres |
