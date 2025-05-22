@@ -314,6 +314,11 @@ class mBus(object):
 
         event.call(*args, **kwargs)
 
+    async def __callEventAsync(
+        self, module: mbusModule, address: str, *args, **kwargs
+    ):
+        return self.__callEvent(module, address, *args, **kwargs)
+
     def __setValue(self, module: mbusModule, address: str, value):
         field = self.__findEndpoint(module.name + "." + address)
         if not isinstance(field, busField):
@@ -342,6 +347,9 @@ class mBus(object):
                 moduleInstance, endpointName, **kwargs
             ),
             callEvent=lambda address, *args, **kwargs: self.__callEvent(
+                moduleInstance, address, *args, **kwargs
+            ),
+            callEventAsync=lambda address, *args, **kwargs: self.__callEventAsync(
                 moduleInstance, address, *args, **kwargs
             ),
             setFieldValue=lambda address, value: self.__setValue(
@@ -412,6 +420,9 @@ class mBus(object):
             )
 
         return trigger.trigger(*args, **kwargs)
+
+    async def fireTriggerAsync(self, address: str, *args, **kwargs):
+        return self.fireTrigger(address, *args, **kwargs)
 
     def addEventListener(self, address: str, listener):
         event = self.__findEndpoint(address)

@@ -3,13 +3,11 @@
 ---
 ## Suported endpoint types
 - ### Trigger
-Simple trigger. Has one responder. Triggered with arguments. Arguments must be strictly defined. May success or fail.
+Simple trigger. Has one responder. Triggered with arguments. Arguments must be strictly defined. Returns a value
 - ### Event
 Trigger with multiple responders. Triggered with arguments. Arguments are loosely defined. Does not return any value. 
 - ### Field
 Simple field. Has type and value. Value can be get or set. May have listeners.
-- ### Action
-More advanced endpoint. Has one responder. Triggered with arguments. Arguments must be strictly defined. Returns output value.
 
 ---
 ## Design
@@ -42,5 +40,3 @@ More advanced endpoint. Has one responder. Triggered with arguments. Arguments m
 | setFieldValueAsync | address : str<br>value : Any | None | Asynchronously sets value for field at given addres |
 | getFieldValue | address : str | value : Any | Gets value of field at given address |
 | getFieldValueAsync | address : str | value : Any | Asynchronously gets value of field at given address |
-| callAction | address : str<br>*args<br>**kwargs | value : Any | Call an event on endpoint with arguments |
-| callActionAsync | address : str<br>*args<br>**kwargs | value : Any | Asynchronously calls an event on endpoint with arguments |

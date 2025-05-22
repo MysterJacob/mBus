@@ -245,11 +245,9 @@ class mbusEndpoints(unittest.TestCase):
         self.assertEqual(valueList[-1], 20)
 
         self.assertRaises(
-            FieldValueTypeError, lambda: mbus.fireTrigger("ftm.tryset", "tryset")
+            FieldValueTypeError,
+            lambda: mbus.fireTrigger("ftm.tryset", "tryset"),
         )
-
-    def test_action(self):
-        pass
 
 
 if __name__ == "__main__":
