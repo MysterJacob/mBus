@@ -1,0 +1,5 @@
+[global]
+
+[testmod]
+disabled = false
+testValue = "value from test config"

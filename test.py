@@ -249,6 +249,13 @@ class mbusEndpoints(unittest.TestCase):
             lambda: mbus.fireTrigger("ftm.tryset", "tryset"),
         )
 
+class TestLoadFromFile(unittest.TestCase):
+    def test_loading(self):
+        mbus = mBus()
+        mbus.loadConfigFile("./testconfig.toml")
+        mbus.loadModuleFromFile("./testmodules/testmod.py")
+
+        self.assertEqual(mbus.fireTrigger('testmod.testTrigger'), "value from test config")
 
 if __name__ == "__main__":
     unittest.main()

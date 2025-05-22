@@ -1,6 +1,10 @@
 import re
-from typing import Any, Callable, Union
 import logging
+import tomllib
+import importlib.util
+from pathlib import Path
+from pydantic import BaseModel
+from typing import Any, Callable, Union
 
 
 class BusException(Exception):
@@ -36,6 +40,10 @@ class EndpointeCallError(BusException):
 
 class FieldValueTypeError(BusException):
     """Trying to set value with different type than expected in the field"""
+
+
+class MissingConfigForModule(BusException):
+    """Missing config for a module"""
 
 
 MODULE_NAME_REGEX = "^([A-Z]|[a-z])([A-Z]|[a-z]|[0-9]|_)*$"
@@ -166,6 +174,7 @@ class busGroup:
 class mbusModule:
     name: str
     dependencies: set[str] = set()
+    _configTemplate: Union[type[BaseModel], None] = None
     _createGroup: Callable[[str], "busGroup"]
     _createEndpoint: Callable
     _callEvent: Callable
@@ -177,6 +186,18 @@ class mbusModule:
         self._createEndpoint = kwargs["createEndpoint"]
         self._callEvent = kwargs["callEvent"]
         self._setFieldValue = kwargs["setFieldValue"]
+
+        self.__loadConfig(kwargs.get("config", None))
+
+    def __loadConfig(self, config: Union[dict, None]):
+        if self._configTemplate is None:
+            return
+        if config is None:
+            raise MissingConfigForModule(
+                f"""Missing config for module {self.name}"""
+            )
+
+        self._config = self._configTemplate(**config)
 
     def load(self, mbus: "mBus"):
         pass
@@ -242,6 +263,7 @@ class mBus(object):
     __loadedModules: dict[str, mbusModule]
     __loadingQueue: set[type[mbusModule]]
     __bus: dict[str, dict[str, Union["busGroup", "busEndpoint"]]]
+    __config: dict[str, Any]
 
     def __new__(cls):
         if not hasattr(cls, "singleton"):
@@ -252,6 +274,12 @@ class mBus(object):
         self.__loadedModules = dict()
         self.__loadingQueue = set()
         self.__bus = dict()
+        self.__config = {}
+
+    def loadConfigFile(self, path: str):
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+            self.__config = data
 
     def loadModule(self, module: type[mbusModule]):
         if isModuleNameInvalid(module.name):
@@ -272,6 +300,22 @@ class mBus(object):
         self.__loadingQueue.add(module)
         self.__tryLoadFromQueue()
 
+    def loadModuleFromFile(self, path: str):
+        pathl = Path(path)
+        moduleName = pathl.name[:-3]
+        spec = importlib.util.spec_from_file_location(moduleName, pathl)
+        if spec is None:
+            raise ModuleLoadingError(f"""Can not find module from {path}""")
+        moduleFile = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(moduleFile)  # type: ignore
+        if not hasattr(moduleFile, moduleName):
+            raise ModuleUnloadingError(
+                f"""File {path} is not a valid mbus module"""
+            )
+
+        module = getattr(moduleFile, moduleName)
+        self.loadModule(module)
+
     def __tryLoadFromQueue(self):
         while True:
             loadedModuleNames = set(self.__loadedModules.keys())
@@ -291,6 +335,46 @@ class mBus(object):
 
             if len(removeFromQueue) == 0:
                 return
+
+    def __loadModule(self, module: type[mbusModule]):
+        if module.name in self.__loadedModules:
+            raise ModuleLoadingError(
+                f"""Module <{module.name}> is already loaded"""
+            )
+        moduleConfig = self.__config.get(module.name, None)
+        isDisabled = moduleConfig is not None and moduleConfig.get(
+            "disabled", False
+        )
+        if isDisabled:
+            return
+
+        moduleInstance = module(
+            self,
+            config=moduleConfig,
+            createGroup=lambda groupName: self.__createGroup(
+                moduleInstance, groupName
+            ),
+            createEndpoint=lambda endpointName, **kwargs: self.__createEndpoint(
+                moduleInstance, endpointName, **kwargs
+            ),
+            callEvent=lambda address, *args, **kwargs: self.__callEvent(
+                moduleInstance, address, *args, **kwargs
+            ),
+            callEventAsync=lambda address,
+            *args,
+            **kwargs: self.__callEventAsync(
+                moduleInstance, address, *args, **kwargs
+            ),
+            setFieldValue=lambda address, value: self.__setValue(
+                moduleInstance, address, value
+            ),
+        )
+        self.__loadedModules[module.name] = moduleInstance
+        self.__bus[module.name] = dict()
+        moduleInstance.load(
+            self,
+        )
+        logging.info(f"Module <{module.name}> has been loaded")
 
     def __createGroup(self, module: mbusModule, groupName: str):
         moduleGroups = self.__bus[module.name]
@@ -332,36 +416,6 @@ class mBus(object):
             )
 
         field.setValue(value)
-
-    def __loadModule(self, module: type[mbusModule]):
-        if module.name in self.__loadedModules:
-            raise ModuleLoadingError(
-                f"""Module <{module.name}> is already loaded"""
-            )
-        moduleInstance = module(
-            self,
-            createGroup=lambda groupName: self.__createGroup(
-                moduleInstance, groupName
-            ),
-            createEndpoint=lambda endpointName, **kwargs: self.__createEndpoint(
-                moduleInstance, endpointName, **kwargs
-            ),
-            callEvent=lambda address, *args, **kwargs: self.__callEvent(
-                moduleInstance, address, *args, **kwargs
-            ),
-            callEventAsync=lambda address, *args, **kwargs: self.__callEventAsync(
-                moduleInstance, address, *args, **kwargs
-            ),
-            setFieldValue=lambda address, value: self.__setValue(
-                moduleInstance, address, value
-            ),
-        )
-        self.__loadedModules[module.name] = moduleInstance
-        self.__bus[module.name] = dict()
-        moduleInstance.load(
-            self,
-        )
-        logging.info(f"Module <{module.name}> has been loaded")
 
     def isModuleLoaded(self, moduleName: str):
         return moduleName in self.__loadedModules
