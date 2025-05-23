@@ -301,13 +301,12 @@ class mBus(object):
         self.__tryLoadFromQueue()
 
     def loadModuleFromFile(self, path: str):
-        pathl = Path(path)
-        moduleName = pathl.name[:-3]
-        spec = importlib.util.spec_from_file_location(moduleName, pathl)
-        if spec is None:
+        moduleName = path.split(".")[-1]
+        try:
+            moduleFile = importlib.import_module(path)
+        except ModuleNotFoundError:
             raise ModuleLoadingError(f"""Can not find module from {path}""")
-        moduleFile = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(moduleFile)  # type: ignore
+
         if not hasattr(moduleFile, moduleName):
             raise ModuleUnloadingError(
                 f"""File {path} is not a valid mbus module"""

@@ -253,7 +253,7 @@ class TestLoadFromFile(unittest.TestCase):
     def test_loading(self):
         mbus = mBus()
         mbus.loadConfigFile("./testconfig.toml")
-        mbus.loadModuleFromFile("./testmodules/testmod.py")
+        mbus.loadModuleFromFile("testmodules.testmod")
 
         self.assertEqual(mbus.fireTrigger('testmod.testTrigger'), "value from test config")
 
