@@ -280,6 +280,7 @@ class mBus(object):
         with open(path, "rb") as f:
             data = tomllib.load(f)
             self.__config = data
+        return self.__config
 
     def loadModule(self, module: type[mbusModule]):
         if isModuleNameInvalid(module.name):
