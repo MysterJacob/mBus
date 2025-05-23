@@ -10,9 +10,10 @@ from mbus import mBus, mbusModule
 
 # import logging
 # import sys
+# 
 # logging.basicConfig(
 #     level=logging.INFO,
-#     format="%(asctime)s [%(levelname)s] %(message)s",
+#     format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
 #     handlers=[logging.StreamHandler(sys.stdout)],
 # )
 
@@ -249,13 +250,17 @@ class mbusEndpoints(unittest.TestCase):
             lambda: mbus.fireTrigger("ftm.tryset", "tryset"),
         )
 
+
 class TestLoadFromFile(unittest.TestCase):
     def test_loading(self):
         mbus = mBus()
         mbus.loadConfigFile("./testconfig.toml")
         mbus.loadModuleFromFile("testmodules.testmod")
 
-        self.assertEqual(mbus.fireTrigger('testmod.testTrigger'), "value from test config")
+        self.assertEqual(
+            mbus.fireTrigger("testmod.testTrigger"), "value from test config"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

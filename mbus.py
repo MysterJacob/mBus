@@ -1,8 +1,7 @@
 import re
 import logging
 import tomllib
-import importlib.util
-from pathlib import Path
+import importlib
 from pydantic import BaseModel
 from typing import Any, Callable, Union
 
@@ -275,6 +274,7 @@ class mBus(object):
         self.__loadingQueue = set()
         self.__bus = dict()
         self.__config = {}
+        self.__logger = logging.getLogger(__name__)
 
     def loadConfigFile(self, path: str):
         with open(path, "rb") as f:
@@ -293,8 +293,8 @@ class mBus(object):
                 f"""Module <{module.name}> is already in loading queue"""
             )
 
-        logging.info(f"Loading module <{module.name}>")
-        logging.debug(
+        self.__logger.info(f"Loading module <{module.name}>")
+        self.__logger.debug(
             f"Module <{module.name} dependencies: {','.join(module.dependencies)}>"
         )
 
@@ -374,7 +374,7 @@ class mBus(object):
         moduleInstance.load(
             self,
         )
-        logging.info(f"Module <{module.name}> has been loaded")
+        self.__logger.info(f"Module <{module.name}> has been loaded")
 
     def __createGroup(self, module: mbusModule, groupName: str):
         moduleGroups = self.__bus[module.name]
@@ -428,7 +428,7 @@ class mBus(object):
 
         module = self.__loadedModules[moduleName]
         module.unload()
-        logging.info(f"Module <{module.name}> has been unloaded")
+        self.__logger.info(f"Module <{module.name}> has been unloaded")
         del self.__loadedModules[moduleName]
         del self.__bus[moduleName]
 
