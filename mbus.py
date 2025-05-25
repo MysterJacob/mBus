@@ -309,7 +309,7 @@ class mBus(object):
             raise ModuleLoadingError(f"""Can not find module from {path}""")
 
         if not hasattr(moduleFile, moduleName):
-            raise ModuleUnloadingError(
+            raise ModuleLoadingError(
                 f"""File {path} is not a valid mbus module"""
             )
 
