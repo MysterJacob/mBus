@@ -84,7 +84,7 @@ class GroupTestModule(mbusModule):
 
 
 class GroupTestCollsionModule(mbusModule):
-    name = "groupTestModule"
+    name = "groupCollisionModule"
 
     def load(self, mbus: mBus):
         self._createGroup("collsion")
@@ -140,16 +140,15 @@ class EndpointCollisionModule(mbusModule):
         self._createEndpoint(
             endpointName="collsion",
             type="trigger",
-            callback=lambda x: print(x),
+            callback=lambda x: (x),
         )
         self._createEndpoint(
             endpointName="collsion",
             type="trigger",
-            callback=lambda x: print(x),
+            callback=lambda x: (x),
         )
 
 
-# Trigger with multiple responders. Triggered with arguments. Arguments are loosely defined. Does not return any value.
 class EventRegisterModule(mbusModule):
     name = "erm"
     dependencies = {"etm"}

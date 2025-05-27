@@ -272,6 +272,9 @@ class mBus(object):
         return cls.singleton
 
     def __init__(self) -> None:
+        if hasattr(self, "_initialized"):
+            return
+        self._initialized = True
         self.__loadedModules = dict()
         self.__loadingQueue = set()
         self.__bus = dict()
@@ -289,10 +292,13 @@ class mBus(object):
             raise ModuleLoadingError(
                 f"""Module <{module.name}> has invalid name"""
             )
-
-        if module in self.__loadingQueue or self.isModuleLoaded(module.name):
+        if module in self.__loadingQueue:
             raise ModuleLoadingError(
                 f"""Module <{module.name}> is already in loading queue"""
+            )
+        if self.isModuleLoaded(module.name):
+            raise ModuleLoadingError(
+                f"""Module <{module.name}> is already loaded"""
             )
 
         self.__logger.info(f"Loading module <{module.name}>")
@@ -319,24 +325,28 @@ class mBus(object):
         self.loadModule(module)
 
     def __tryLoadFromQueue(self):
+
         while True:
             loadedModuleNames = set(self.__loadedModules.keys())
-            removeFromQueue = set()
-            for moduleInQueue in self.__loadingQueue:
+            requirementsNotMetCount = 0
+            anyLoaded = False
+            while len(self.__loadingQueue) > requirementsNotMetCount:
+                nextModule = self.__loadingQueue.pop()
+
                 requirementsMet = len(
-                    moduleInQueue.dependencies
-                ) == 0 or moduleInQueue.dependencies.issubset(loadedModuleNames)
+                    nextModule.dependencies
+                ) == 0 or nextModule.dependencies.issubset(loadedModuleNames)
+
                 if not requirementsMet:
+                    self.__loadingQueue.add(nextModule)
+                    requirementsNotMetCount += 1
                     continue
 
-                self.__loadModule(moduleInQueue)
-                removeFromQueue.add(moduleInQueue)
+                self.__loadModule(nextModule)
+                anyLoaded = True
 
-            for moduleToRemove in removeFromQueue:
-                self.__loadingQueue.remove(moduleToRemove)
-
-            if len(removeFromQueue) == 0:
-                return
+            if not anyLoaded:
+                break
 
     def __loadModule(self, module: type[mbusModule]):
         if module.name in self.__loadedModules:
@@ -348,6 +358,9 @@ class mBus(object):
             "disabled", False
         )
         if isDisabled:
+            self.__logger.warning(
+                f"Not loading {module.name} as it is disabled"
+            )
             return
 
         moduleInstance = module(
