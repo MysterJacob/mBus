@@ -181,6 +181,8 @@ class mbusModule:
 
     def __init__(self, mbus: "mBus", **kwargs) -> None:
         self.mbus = mbus
+        self.logger = logging.getLogger(self.name)
+
         self._createGroup = kwargs["createGroup"]
         self._createEndpoint = kwargs["createEndpoint"]
         self._callEvent = kwargs["callEvent"]
