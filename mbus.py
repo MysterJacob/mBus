@@ -59,12 +59,19 @@ def isGroupNameInvalid(railName: str) -> bool:
     return re.fullmatch(GROUP_NAME_REGEX, railName) is None
 
 
-class busEndpoint:
+class mbusEndpoint:
     name: str
     owner: "mbusModule"
 
+    def probe(self, deep=False):
+        return {
+            "name": self.name,
+            "type": self.__class__.__name__,
+            "owner": self.owner.name,
+        }
 
-class busTrigger(busEndpoint):
+
+class busTrigger(mbusEndpoint):
     __callback: Callable
 
     def __init__(self, name: str, owner: "mbusModule", **kwargs):
@@ -89,7 +96,7 @@ class busTrigger(busEndpoint):
             )
 
 
-class busEvent(busEndpoint):
+class busEvent(mbusEndpoint):
     __responders: set[Callable]
 
     def __init__(self, name: str, owner: "mbusModule", **kwargs):
@@ -106,7 +113,7 @@ class busEvent(busEndpoint):
             responder(*args, **kwargs)
 
 
-class busField(busEndpoint):
+class busField(mbusEndpoint):
     __fieldValue: Any
     __fieldType: type
     __onChangeCallbacks: set[Callable]
@@ -149,19 +156,20 @@ class busField(busEndpoint):
         return self.__fieldValue
 
 
-class busGroup:
+class mbusGroup:
     groupName: str
-    __subBus: dict[str, Union["busGroup", "busEndpoint"]]
+    owner: "mbusModule"
+    __subBus: dict[str, Union["mbusGroup", "mbusEndpoint"]]
 
     def __init__(self, owner: "mbusModule", groupName: str) -> None:
         self.owner = owner
         self.groupName = groupName
         self.__subBus = dict()
 
-    def createGroup(self, groupName: str) -> "busGroup":
+    def createGroup(self, groupName: str) -> "mbusGroup":
         return groupCreator(self.__subBus, self.owner, groupName)
 
-    def createEndpoint(self, endpointName: str, **kwargs) -> "busEndpoint":
+    def createEndpoint(self, endpointName: str, **kwargs) -> "mbusEndpoint":
         return endpointCreator(
             self.__subBus, self.owner, endpointName, **kwargs
         )
@@ -169,15 +177,29 @@ class busGroup:
     def get(self, *args, **kwargs):
         return self.__subBus.get(*args, **kwargs)
 
+    def probe(self, deep=False):
+        probed: dict[str, Any] = {
+            "name": self.groupName,
+            "type": self.__class__.__name__,
+            "owner": self.owner.name,
+        }
+        if deep:
+            probed["elements"] = {
+                name: element.probe() for name, element in self.__subBus.items()
+            }
+
+        return probed
+
 
 class mbusModule:
     name: str
     dependencies: set[str] = set()
     _configTemplate: Union[type[BaseModel], None] = None
-    _createGroup: Callable[[str], "busGroup"]
+    _createGroup: Callable[[str], "mbusGroup"]
     _createEndpoint: Callable
     _callEvent: Callable
     _setFieldValue: Callable
+    _probe: Callable
 
     def __init__(self, mbus: "mBus", **kwargs) -> None:
         self.mbus = mbus
@@ -187,6 +209,7 @@ class mbusModule:
         self._createEndpoint = kwargs["createEndpoint"]
         self._callEvent = kwargs["callEvent"]
         self._setFieldValue = kwargs["setFieldValue"]
+        self._probe = kwargs["probe"]
 
         self.__loadConfig(kwargs.get("config", None))
 
@@ -199,6 +222,16 @@ class mbusModule:
             )
 
         self._config = self._configTemplate(**config)
+
+    def probe(self, deep=False):
+        probed: dict[str, Any] = {
+            "name": self.name,
+            "type": self.__class__.__name__,
+        }
+        if deep:
+            probed["elements"] = self._probe()
+
+        return probed
 
     def load(self, mbus: "mBus"):
         pass
@@ -217,7 +250,7 @@ def groupCreator(moduleGroups, owner: mbusModule, groupName: str):
             f"""Name <{groupName}> is already present on the bus"""
         )
 
-    newGroup = busGroup(owner, groupName)
+    newGroup = mbusGroup(owner, groupName)
 
     moduleGroups[groupName] = newGroup
 
@@ -263,7 +296,7 @@ def endpointCreator(
 class mBus(object):
     __loadedModules: dict[str, mbusModule]
     __loadingQueue: set[type[mbusModule]]
-    __bus: dict[str, dict[str, Union["busGroup", "busEndpoint"]]]
+    __bus: dict[str, dict[str, Union["mbusGroup", "mbusEndpoint"]]]
     __config: dict[str, Any]
 
     def __new__(cls):
@@ -325,7 +358,6 @@ class mBus(object):
         self.loadModule(module)
 
     def __tryLoadFromQueue(self):
-
         while True:
             loadedModuleNames = set(self.__loadedModules.keys())
             requirementsNotMetCount = 0
@@ -383,6 +415,10 @@ class mBus(object):
             setFieldValue=lambda address, value: self.__setValue(
                 moduleInstance, address, value
             ),
+            probe=lambda: {
+                name: element.probe()
+                for name, element in self.__bus[module.name].items()
+            },
         )
         self.__loadedModules[module.name] = moduleInstance
         self.__bus[module.name] = dict()
@@ -400,7 +436,7 @@ class mBus(object):
         return endpointCreator(moduleGroups, module, endpointName, **kwargs)
 
     def __callEvent(self, module: mbusModule, address: str, *args, **kwargs):
-        event = self.__findEndpoint(module.name + "." + address)
+        event = self.__getBusElement(module.name + "." + address)
         if not isinstance(event, busEvent):
             raise EndpointeCallError(
                 f"""Endpoint on address <{address}> is not a event"""
@@ -419,7 +455,7 @@ class mBus(object):
         return self.__callEvent(module, address, *args, **kwargs)
 
     def __setValue(self, module: mbusModule, address: str, value):
-        field = self.__findEndpoint(module.name + "." + address)
+        field = self.__getBusElement(module.name + "." + address)
         if not isinstance(field, busField):
             raise EndpointeCallError(
                 f"""Endpoint on address <{address}> is not a field"""
@@ -456,7 +492,7 @@ class mBus(object):
         for i, step in enumerate(splited):
             start = start.get(step, None)
 
-            if isinstance(start, busEndpoint):
+            if isinstance(start, mbusEndpoint):
                 return i + 1 == len(splited)
 
             if start is None:
@@ -464,25 +500,35 @@ class mBus(object):
 
         return True
 
-    def __findEndpoint(self, address: str):
-        if len(address) == 0:
-            raise EndpointeCallError(f"""Address <{address}> not found""")
-
-        start = self.__bus
+    def __getBusElement(
+        self, address: str
+    ) -> Union["mBus", mbusModule, mbusGroup, mbusEndpoint]:
         splited = address.split(".")
+
+        if len(address) == 0:
+            return self
+
+        if len(splited) == 1:
+            module = self.__loadedModules.get(splited[0], None)
+            if module is None:
+                raise EndpointeCallError(f"""Address <{address}> not found""")
+            return module
+
+        currentElement = self.__bus
+
         for step in splited:
-            if isinstance(start, busEndpoint):
+            if isinstance(currentElement, mbusEndpoint):
                 raise EndpointeCallError(f"""Address <{address}> not found""")
 
-            start = start.get(step, None)
+            currentElement = currentElement.get(step, None)
 
-            if start is None:
+            if currentElement is None:
                 raise EndpointeCallError(f"""Address <{address}> not found""")
 
-        return start
+        return currentElement  # type: ignore
 
     def fireTrigger(self, address: str, *args, **kwargs):
-        trigger = self.__findEndpoint(address)
+        trigger = self.__getBusElement(address)
         if not isinstance(trigger, busTrigger):
             raise EndpointeCallError(
                 f"""Endpoint on address <{address}> is not a trigger"""
@@ -494,7 +540,7 @@ class mBus(object):
         return self.fireTrigger(address, *args, **kwargs)
 
     def addEventListener(self, address: str, listener):
-        event = self.__findEndpoint(address)
+        event = self.__getBusElement(address)
         if not isinstance(event, busEvent):
             raise EndpointeCallError(
                 f"""Endpoint on address <{address}> is not a event"""
@@ -503,7 +549,7 @@ class mBus(object):
         event.addEventListener(listener)
 
     def getValue(self, address: str):
-        field = self.__findEndpoint(address)
+        field = self.__getBusElement(address)
         if not isinstance(field, busField):
             raise EndpointeCallError(
                 f"""Endpoint on address <{address}> is not a field"""
@@ -512,10 +558,24 @@ class mBus(object):
         return field.getValue()
 
     def addFieldChangeCallback(self, address: str, callback: Callable):
-        field = self.__findEndpoint(address)
+        field = self.__getBusElement(address)
         if not isinstance(field, busField):
             raise EndpointeCallError(
                 f"""Endpoint on address <{address}> is not a field"""
             )
 
         field.addOnChangeCallback(callback)
+
+    def probe(self, deep=False):
+        return {
+            "type": "mbus",
+            "modules": {
+                m.name: m.probe() for m in self.__loadedModules.values()
+            },
+        }
+
+    def getLoadedModules(self):
+        return set(self.__loadedModules.keys())
+
+    def probeAddress(self, address: str):
+        return self.__getBusElement(address).probe(deep=True)

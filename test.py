@@ -87,8 +87,8 @@ class GroupTestCollsionModule(mbusModule):
     name = "groupCollisionModule"
 
     def load(self, mbus: mBus):
-        self._createGroup("collsion")
-        self._createGroup("collsion")
+        self._createGroup("collision")
+        self._createGroup("collision")
 
 
 class mbusGroups(unittest.TestCase):
@@ -138,12 +138,12 @@ class EndpointCollisionModule(mbusModule):
 
     def load(self, mbus: "mBus"):
         self._createEndpoint(
-            endpointName="collsion",
+            endpointName="collision",
             type="trigger",
             callback=lambda x: (x),
         )
         self._createEndpoint(
-            endpointName="collsion",
+            endpointName="collision",
             type="trigger",
             callback=lambda x: (x),
         )
