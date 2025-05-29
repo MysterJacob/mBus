@@ -295,6 +295,7 @@ def endpointCreator(
 
 class mBus(object):
     __loadedModules: dict[str, mbusModule]
+    __dependedOn: dict[str, set[str]]
     __loadingQueue: set[type[mbusModule]]
     __bus: dict[str, dict[str, Union["mbusGroup", "mbusEndpoint"]]]
     __config: dict[str, Any]
@@ -309,6 +310,7 @@ class mBus(object):
             return
         self._initialized = True
         self.__loadedModules = dict()
+        self.__dependedOn = dict()
         self.__loadingQueue = set()
         self.__bus = dict()
         self.__config = {}
@@ -422,9 +424,16 @@ class mBus(object):
         )
         self.__loadedModules[module.name] = moduleInstance
         self.__bus[module.name] = dict()
+
+        for dependency in module.dependencies:
+            if dependency not in self.__dependedOn:
+                self.__dependedOn[dependency] = set()
+            self.__dependedOn[dependency].add(module.name)
+
         moduleInstance.load(
             self,
         )
+
         self.__logger.info(f"Module <{module.name}> has been loaded")
 
     def __createGroup(self, module: mbusModule, groupName: str):
@@ -477,11 +486,29 @@ class mBus(object):
                 f"""Module <{moduleName}> is not loaded"""
             )
 
+        if moduleName in self.__dependedOn:
+            self.__unloadDependencies(moduleName)
+            del self.__dependedOn[moduleName]
+
         module = self.__loadedModules[moduleName]
         module.unload()
+
         self.__logger.info(f"Module <{module.name}> has been unloaded")
         del self.__loadedModules[moduleName]
         del self.__bus[moduleName]
+
+    def __unloadDependencies(self, moduleName: str):
+        dependedOn = self.__dependedOn[moduleName]
+        for dependedModuleName in dependedOn:
+            if not self.isModuleLoaded(dependedModuleName):
+                continue
+            self.unloadModule(dependedModuleName)
+
+    def unloadAll(self):
+        for moduleName in self.__loadedModules.keys():
+            if not self.isModuleLoaded(moduleName):
+                continue
+            self.unloadModule(moduleName)
 
     def addressExisits(self, address: str):
         if len(address) == 0:
@@ -567,12 +594,13 @@ class mBus(object):
         field.addOnChangeCallback(callback)
 
     def probe(self, deep=False):
-        return {
+        probed: dict[str, Any] = {
             "type": "mbus",
-            "modules": {
-                m.name: m.probe() for m in self.__loadedModules.values()
-            },
         }
+        if deep:
+            probed["modules"] = (
+                {m.name: m.probe() for m in self.__loadedModules.values()},
+            )
 
     def getLoadedModules(self):
         return set(self.__loadedModules.keys())

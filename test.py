@@ -58,7 +58,6 @@ class mbusModules(unittest.TestCase):
         self.assertTrue(mbus.isModuleLoaded("testModule"))
         self.assertTrue(mbus.isModuleLoaded("testModule2"))
         mbus.unloadModule("testModule")
-        mbus.unloadModule("testModule2")
 
     def test_collision(self):
         mbus = mBus()
@@ -259,6 +258,24 @@ class TestLoadFromFile(unittest.TestCase):
         self.assertEqual(
             mbus.fireTrigger("testmod.testTrigger"), "value from test config"
         )
+
+class dep1(mbusModule):
+    name = 'dep1'
+class dep2(mbusModule):
+    name = 'dep2'
+    dependencies = {'dep1'}
+
+
+class TestUnloadingDependecies(unittest.TestCase):
+    def test_unloading(self):
+        mbus = mBus()
+        mbus.loadModule(dep1)
+        mbus.loadModule(dep2)
+        self.assertTrue(mbus.isModuleLoaded("dep1"))
+        self.assertTrue(mbus.isModuleLoaded("dep2"))
+        mbus.unloadModule('dep1')
+        self.assertFalse(mbus.isModuleLoaded("dep1"))
+        self.assertFalse(mbus.isModuleLoaded("dep2"))
 
 
 if __name__ == "__main__":
