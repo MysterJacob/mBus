@@ -505,7 +505,8 @@ class mBus(object):
             self.unloadModule(dependedModuleName)
 
     def unloadAll(self):
-        for moduleName in self.__loadedModules.keys():
+        modulesNames = set(self.__loadedModules.keys())
+        for moduleName in modulesNames:
             if not self.isModuleLoaded(moduleName):
                 continue
             self.unloadModule(moduleName)
