@@ -228,7 +228,8 @@ class mbusModule:
     def probe(self, deep=False):
         probed: dict[str, Any] = {
             "name": self.name,
-            "type": self.__class__.__name__,
+            "typeName": self.__class__.__name__,
+            "type": "module",
         }
         if deep:
             probed["elements"] = self._probe()
@@ -603,7 +604,7 @@ class mBus(object):
             "type": "mbus",
         }
         if deep:
-            probed["modules"] = (
+            probed["elements"] = (
                 {m.name: m.probe() for m in self.__loadedModules.values()}
             )
 
