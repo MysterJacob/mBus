@@ -37,6 +37,4 @@ Simple field. Has type and value. Value can be get or set. May have listeners.
 | fireTriggerAsync | address : str<br>*args<br>**kwargs | success : bool | Asynchronously fire trigger on endpoint with arguments, returns state |
 | addEventListener | address : str<br>listener | None | Add event listener for event at given address |
 | setFieldValue | address : str<br>value : Any | None | Sets value for field at given addres |
-| setFieldValueAsync | address : str<br>value : Any | None | Asynchronously sets value for field at given addres |
 | getFieldValue | address : str | value : Any | Gets value of field at given address |
-| getFieldValueAsync | address : str | value : Any | Asynchronously gets value of field at given address |

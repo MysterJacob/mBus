@@ -194,6 +194,7 @@ class mbusGroup:
 class mbusModule:
     name: str
     dependencies: set[str] = set()
+    logger: logging.Logger
     _configTemplate: Union[type[BaseModel], None] = None
     _createGroup: Callable[[str], "mbusGroup"]
     _createEndpoint: Callable
