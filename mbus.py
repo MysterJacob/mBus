@@ -66,7 +66,8 @@ class mbusEndpoint:
     def probe(self, deep=False):
         return {
             "name": self.name,
-            "type": self.__class__.__name__,
+            "typeName": self.__class__.__name__,
+            "type": "endpoint",
             "owner": self.owner.name,
         }
 
