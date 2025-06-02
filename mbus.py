@@ -607,6 +607,8 @@ class mBus(object):
                 {m.name: m.probe() for m in self.__loadedModules.values()},
             )
 
+        return probed
+
     def getLoadedModules(self):
         return set(self.__loadedModules.keys())
 
