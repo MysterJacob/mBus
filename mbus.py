@@ -195,6 +195,7 @@ class mbusModule:
     name: str
     dependencies: set[str] = set()
     logger: logging.Logger
+    _loaded: bool
     _configTemplate: Union[type[BaseModel], None] = None
     _createGroup: Callable[[str], "mbusGroup"]
     _createEndpoint: Callable
@@ -434,6 +435,7 @@ class mBus(object):
         moduleInstance.load(
             self,
         )
+        moduleInstance._loaded = True
 
         self.__logger.info(f"Module <{module.name}> has been loaded")
 
@@ -493,6 +495,7 @@ class mBus(object):
 
         module = self.__loadedModules[moduleName]
         module.unload()
+        module._loaded = False
 
         self.__logger.info(f"Module <{module.name}> has been unloaded")
         del self.__loadedModules[moduleName]
