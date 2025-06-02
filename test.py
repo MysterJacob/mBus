@@ -77,7 +77,7 @@ class mbusModules(unittest.TestCase):
 class GroupTestModule(mbusModule):
     name = "groupTestModule"
 
-    def load(self, mbus: mBus):
+    def load(self):
         group = self._createGroup("testGroup")
         group.createGroup("insider")
 
@@ -85,7 +85,7 @@ class GroupTestModule(mbusModule):
 class GroupTestCollsionModule(mbusModule):
     name = "groupCollisionModule"
 
-    def load(self, mbus: mBus):
+    def load(self):
         self._createGroup("collision")
         self._createGroup("collision")
 
@@ -115,7 +115,7 @@ class TriggerCreatorModule(mbusModule):
     testTriggerValue = 0
     name = "tcm"
 
-    def load(self, mbus: mBus):
+    def load(self):
         self._createEndpoint(
             endpointName="trigger",
             type="trigger",
@@ -135,7 +135,7 @@ class TriggerCreatorModule(mbusModule):
 class EndpointCollisionModule(mbusModule):
     name = "ecm"
 
-    def load(self, mbus: "mBus"):
+    def load(self):
         self._createEndpoint(
             endpointName="collision",
             type="trigger",
@@ -153,8 +153,8 @@ class EventRegisterModule(mbusModule):
     dependencies = {"etm"}
     testValue = 1
 
-    def load(self, mbus: "mBus"):
-        mbus.addEventListener("etm.event", self.callback)
+    def load(self):
+        self.mbus.addEventListener("etm.event", self.callback)
 
     def callback(self, *args, **kwargs):
         EventRegisterModule.testValue *= kwargs.get("mul", 2)
@@ -163,7 +163,7 @@ class EventRegisterModule(mbusModule):
 class EventTriggerModule(mbusModule):
     name = "etm"
 
-    def load(self, mbus: "mBus"):
+    def load(self):
         self._createEndpoint(endpointName="event", type="event")
         self._createEndpoint(
             endpointName="trigger", type="trigger", callback=self.callback
@@ -178,7 +178,7 @@ class FieldTestModule(mbusModule):
     testValue = 0
     name = "ftm"
 
-    def load(self, mbus: "mBus"):
+    def load(self):
         self._createEndpoint(
             endpointName="testField",
             type="field",

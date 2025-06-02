@@ -11,7 +11,7 @@ class testmod(mbusModule):
     _configTemplate = testmodConfig
     _config: testmodConfig
 
-    def load(self, mbus: "mBus"):
+    def load(self):
         self._createEndpoint(
             endpointName="testTrigger",
             type="trigger",

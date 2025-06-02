@@ -196,6 +196,7 @@ class mbusModule:
     name: str
     dependencies: set[str] = set()
     logger: logging.Logger
+    mbus: "mBus"
     _loaded: bool
     _configTemplate: Union[type[BaseModel], None] = None
     _createGroup: Callable[[str], "mbusGroup"]
@@ -237,7 +238,7 @@ class mbusModule:
 
         return probed
 
-    def load(self, mbus: "mBus"):
+    def load(self):
         pass
 
     def unload(self):
@@ -434,9 +435,8 @@ class mBus(object):
                 self.__dependedOn[dependency] = set()
             self.__dependedOn[dependency].add(module.name)
 
-        moduleInstance.load(
-            self,
-        )
+        moduleInstance.mbus = self
+        moduleInstance.load()
         moduleInstance._loaded = True
 
         self.__logger.info(f"Module <{module.name}> has been loaded")
@@ -605,9 +605,9 @@ class mBus(object):
             "type": "mbus",
         }
         if deep:
-            probed["elements"] = (
-                {m.name: m.probe() for m in self.__loadedModules.values()}
-            )
+            probed["elements"] = {
+                m.name: m.probe() for m in self.__loadedModules.values()
+            }
 
         return probed
 
