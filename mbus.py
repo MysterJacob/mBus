@@ -85,7 +85,7 @@ class busTrigger(mbusEndpoint):
         self.owner = owner
         self.__callback = callback
 
-    def trigger(self, *args, **kwargs):
+    def trigger(self, *args, **kwargs) -> Any:
         try:
             result = self.__callback(*args, **kwargs)
             if result is None:
@@ -153,7 +153,7 @@ class busField(mbusEndpoint):
     def addOnChangeCallback(self, callback: Callable):
         self.__onChangeCallbacks.add(callback)
 
-    def getValue(self):
+    def getValue(self) -> Any:
         return self.__fieldValue
 
 
@@ -482,7 +482,7 @@ class mBus(object):
 
         field.setValue(value)
 
-    def isModuleLoaded(self, moduleName: str):
+    def isModuleLoaded(self, moduleName: str) -> bool:
         return moduleName in self.__loadedModules
 
     def unloadModule(self, moduleName: str):
@@ -517,7 +517,7 @@ class mBus(object):
                 continue
             self.unloadModule(moduleName)
 
-    def addressExisits(self, address: str):
+    def addressExisits(self, address: str) -> bool:
         if len(address) == 0:
             return False
 
@@ -561,7 +561,7 @@ class mBus(object):
 
         return currentElement  # type: ignore
 
-    def fireTrigger(self, address: str, *args, **kwargs):
+    def fireTrigger(self, address: str, *args, **kwargs) -> Any:
         trigger = self.__getBusElement(address)
         if not isinstance(trigger, busTrigger):
             raise EndpointeCallError(
@@ -570,7 +570,7 @@ class mBus(object):
 
         return trigger.trigger(*args, **kwargs)
 
-    async def fireTriggerAsync(self, address: str, *args, **kwargs):
+    async def fireTriggerAsync(self, address: str, *args, **kwargs) -> Any:
         return self.fireTrigger(address, *args, **kwargs)
 
     def addEventListener(self, address: str, listener):
@@ -582,7 +582,7 @@ class mBus(object):
 
         event.addEventListener(listener)
 
-    def getValue(self, address: str):
+    def getValue(self, address: str) -> Any:
         field = self.__getBusElement(address)
         if not isinstance(field, busField):
             raise EndpointeCallError(
