@@ -604,7 +604,7 @@ class mBus(object):
         }
         if deep:
             probed["modules"] = (
-                {m.name: m.probe() for m in self.__loadedModules.values()},
+                {m.name: m.probe() for m in self.__loadedModules.values()}
             )
 
         return probed
