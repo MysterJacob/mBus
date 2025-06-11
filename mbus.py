@@ -304,6 +304,7 @@ class mBus(object):
     __loadingQueue: set[type[mbusModule]]
     __bus: dict[str, dict[str, Union["mbusGroup", "mbusEndpoint"]]]
     __config: dict[str, Any]
+    __onLoadCallbacks: dict[str, set[Callable]]
 
     def __new__(cls):
         if not hasattr(cls, "singleton"):
@@ -317,9 +318,10 @@ class mBus(object):
         self.__loadedModules = dict()
         self.__dependedOn = dict()
         self.__loadingQueue = set()
+        self.__onLoadCallbacks = dict()
         self.__bus = dict()
         self.__config = {}
-        self.__logger = logging.getLogger(__name__)
+        self.__logger = logging.getLogger("mBus")
 
     def loadConfigFile(self, path: str):
         with open(path, "rb") as f:
@@ -440,6 +442,16 @@ class mBus(object):
         moduleInstance._loaded = True
 
         self.__logger.info(f"Module <{module.name}> has been loaded")
+
+        if module.name not in self.__onLoadCallbacks:
+            return
+
+        for onLoadCallback in self.__onLoadCallbacks[module.name]:
+            try:
+                onLoadCallback()
+            except Exception as e:
+                self.__logger.error("Error while executing load callback")
+                self.__logger.exception(e)
 
     def __createGroup(self, module: mbusModule, groupName: str):
         moduleGroups = self.__bus[module.name]
@@ -616,3 +628,13 @@ class mBus(object):
 
     def probeAddress(self, address: str):
         return self.__getBusElement(address).probe(deep=True)
+
+    def addLoadCallback(self, name, callback: Callable):
+        if name in self.__loadedModules:
+            callback()
+            return
+
+        if name not in self.__onLoadCallbacks:
+            self.__onLoadCallbacks[name] = set()
+
+        self.__onLoadCallbacks[name].add(callback)

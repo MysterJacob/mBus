@@ -10,7 +10,7 @@ from mbus import mBus, mbusModule
 
 # import logging
 # import sys
-# 
+#
 # logging.basicConfig(
 #     level=logging.INFO,
 #     format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
@@ -259,11 +259,14 @@ class TestLoadFromFile(unittest.TestCase):
             mbus.fireTrigger("testmod.testTrigger"), "value from test config"
         )
 
+
 class dep1(mbusModule):
-    name = 'dep1'
+    name = "dep1"
+
+
 class dep2(mbusModule):
-    name = 'dep2'
-    dependencies = {'dep1'}
+    name = "dep2"
+    dependencies = {"dep1"}
 
 
 class TestUnloadingDependecies(unittest.TestCase):
@@ -273,7 +276,7 @@ class TestUnloadingDependecies(unittest.TestCase):
         mbus.loadModule(dep2)
         self.assertTrue(mbus.isModuleLoaded("dep1"))
         self.assertTrue(mbus.isModuleLoaded("dep2"))
-        mbus.unloadModule('dep1')
+        mbus.unloadModule("dep1")
         self.assertFalse(mbus.isModuleLoaded("dep1"))
         self.assertFalse(mbus.isModuleLoaded("dep2"))
 
