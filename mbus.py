@@ -441,8 +441,8 @@ class mBus(object):
             self.__dependedOn[dependency].add(module.name)
 
         moduleInstance.mbus = self
-        moduleInstance.load()
         moduleInstance._loaded.set()
+        moduleInstance.load()
 
         self.__logger.info(f"Module <{module.name}> has been loaded")
 
