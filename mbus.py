@@ -2,6 +2,7 @@ import re
 import logging
 import tomllib
 import importlib
+import threading
 from pydantic import BaseModel
 from typing import Any, Callable, Union
 
@@ -197,7 +198,7 @@ class mbusModule:
     dependencies: set[str] = set()
     logger: logging.Logger
     mbus: "mBus"
-    _loaded: bool
+    _loaded: threading.Event
     _configTemplate: Union[type[BaseModel], None] = None
     _createGroup: Callable[[str], "mbusGroup"]
     _createEndpoint: Callable
@@ -214,6 +215,8 @@ class mbusModule:
         self._callEvent = kwargs["callEvent"]
         self._setFieldValue = kwargs["setFieldValue"]
         self._probe = kwargs["probe"]
+
+        self._loaded = threading.Event()
 
         self.__loadConfig(kwargs.get("config", None))
 
@@ -439,7 +442,7 @@ class mBus(object):
 
         moduleInstance.mbus = self
         moduleInstance.load()
-        moduleInstance._loaded = True
+        moduleInstance._loaded.set()
 
         self.__logger.info(f"Module <{module.name}> has been loaded")
 
@@ -509,7 +512,7 @@ class mBus(object):
 
         module = self.__loadedModules[moduleName]
         module.unload()
-        module._loaded = False
+        module._loaded.clear()
 
         self.__logger.info(f"Module <{module.name}> has been unloaded")
         del self.__loadedModules[moduleName]
