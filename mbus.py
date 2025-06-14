@@ -511,8 +511,8 @@ class mBus(object):
             del self.__dependedOn[moduleName]
 
         module = self.__loadedModules[moduleName]
-        module.unload()
         module._loaded.clear()
+        module.unload()
 
         self.__logger.info(f"Module <{module.name}> has been unloaded")
         del self.__loadedModules[moduleName]
