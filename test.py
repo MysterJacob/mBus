@@ -1,4 +1,5 @@
 #!/bin/env python3
+import asyncio
 import unittest
 from mbus import (
     EndpointCreationError,
@@ -156,7 +157,7 @@ class EventRegisterModule(mbusModule):
     def load(self):
         self.mbus.addEventListener("etm.event", self.callback)
 
-    def callback(self, *args, **kwargs):
+    async def callback(self, *args, **kwargs):
         EventRegisterModule.testValue *= kwargs.get("mul", 2)
 
 
@@ -172,6 +173,7 @@ class EventTriggerModule(mbusModule):
     def callback(self, *args, **kwargs):
         self._callEvent("event")
         self._callEvent("event", mul=5)
+        self.safeWait(1)
 
 
 class FieldTestModule(mbusModule):

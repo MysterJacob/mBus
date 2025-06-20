@@ -1,9 +1,14 @@
 import re
+import time
 import logging
 import tomllib
+import asyncio
 import importlib
 import threading
+from queue import Queue
+from types import CoroutineType
 from pydantic import BaseModel
+from dataclasses import dataclass
 from typing import Any, Callable, Union
 
 
@@ -89,8 +94,6 @@ class busTrigger(mbusEndpoint):
     def trigger(self, *args, **kwargs) -> Any:
         try:
             result = self.__callback(*args, **kwargs)
-            if result is None:
-                return False
             return result
         except TypeError:
             raise EndpointeCallError(
@@ -99,7 +102,7 @@ class busTrigger(mbusEndpoint):
 
 
 class busEvent(mbusEndpoint):
-    __responders: set[Callable]
+    __responders: set[Callable[..., CoroutineType]]
 
     def __init__(self, name: str, owner: "mbusModule", **kwargs):
         responders = kwargs.get("responders", set())
@@ -107,12 +110,11 @@ class busEvent(mbusEndpoint):
         self.owner = owner
         self.__responders = responders
 
-    def addEventListener(self, listener: Callable):
+    def addEventListener(self, listener: Callable[..., CoroutineType]):
         self.__responders.add(listener)
 
-    def call(self, *args, **kwargs):
-        for responder in self.__responders:
-            responder(*args, **kwargs)
+    def getResponders(self, *args, **kwargs):
+        return self.__responders
 
 
 class busField(mbusEndpoint):
@@ -198,7 +200,7 @@ class mbusModule:
     dependencies: set[str] = set()
     logger: logging.Logger
     mbus: "mBus"
-    _loaded: threading.Event
+    is_loaded: threading.Event
     _configTemplate: Union[type[BaseModel], None] = None
     _createGroup: Callable[[str], "mbusGroup"]
     _createEndpoint: Callable
@@ -216,7 +218,7 @@ class mbusModule:
         self._setFieldValue = kwargs["setFieldValue"]
         self._probe = kwargs["probe"]
 
-        self._loaded = threading.Event()
+        self.is_loaded = threading.Event()
 
         self.__loadConfig(kwargs.get("config", None))
 
@@ -240,6 +242,12 @@ class mbusModule:
             probed["elements"] = self._probe()
 
         return probed
+
+    def safeWait(self, seconds: float):
+        start = time.time()
+        while time.time() - start < seconds:
+            if not self.is_loaded:
+                return
 
     def load(self):
         pass
@@ -301,6 +309,13 @@ def endpointCreator(
             )
 
 
+@dataclass
+class EventQueueElement:
+    event: busEvent
+    args: tuple
+    kwargs: dict
+
+
 class mBus(object):
     __loadedModules: dict[str, mbusModule]
     __dependedOn: dict[str, set[str]]
@@ -308,13 +323,14 @@ class mBus(object):
     __bus: dict[str, dict[str, Union["mbusGroup", "mbusEndpoint"]]]
     __config: dict[str, Any]
     __onLoadCallbacks: dict[str, set[Callable]]
+    __eventQueue: Queue[EventQueueElement]
 
     def __new__(cls):
         if not hasattr(cls, "singleton"):
             cls.singleton = super(mBus, cls).__new__(cls)
         return cls.singleton
 
-    def __init__(self) -> None:
+    def __init__(self, eventTimeout=5) -> None:
         if hasattr(self, "_initialized"):
             return
         self._initialized = True
@@ -322,9 +338,18 @@ class mBus(object):
         self.__dependedOn = dict()
         self.__loadingQueue = set()
         self.__onLoadCallbacks = dict()
+        self.__eventQueue = Queue()
+
         self.__bus = dict()
         self.__config = {}
         self.__logger = logging.getLogger("mBus")
+
+        self.__eventTimeout = eventTimeout
+
+        self.__eventThread = threading.Thread(
+            target=self.__eventLoop, name="mBus event thread", daemon=True
+        )
+        self.__eventThread.start()
 
     def loadConfigFile(self, path: str):
         with open(path, "rb") as f:
@@ -442,7 +467,7 @@ class mBus(object):
 
         moduleInstance.mbus = self
         moduleInstance.load()
-        moduleInstance._loaded.set()
+        moduleInstance.is_loaded.set()
 
         self.__logger.info(f"Module <{module.name}> has been loaded")
 
@@ -455,6 +480,32 @@ class mBus(object):
             except Exception as e:
                 self.__logger.error("Error while executing load callback")
                 self.__logger.exception(e)
+
+    def __eventLoop(self):
+        while True:
+            nextEvent = self.__eventQueue.get()
+
+            try:
+                asyncio.run(self.__runEvent(nextEvent))
+            except asyncio.TimeoutError:
+                self.__logger.error(
+                    f"Event call <{nextEvent.event.name}> timed out"
+                )
+            except Exception as e:
+                self.__logger.error(
+                    f"Error while calling event <{nextEvent.event.name}>"
+                )
+                self.__logger.exception(e)
+
+    async def __runEvent(self, eventElement: EventQueueElement):
+        coroutines = set()
+        for responder in eventElement.event.getResponders():
+            coroutines.add(responder(*eventElement.args, **eventElement.kwargs))
+
+        await asyncio.wait_for(
+            asyncio.gather(*coroutines),
+            timeout=self.__eventTimeout,
+        )
 
     def __createGroup(self, module: mbusModule, groupName: str):
         moduleGroups = self.__bus[module.name]
@@ -476,7 +527,7 @@ class mBus(object):
                 f"""Event <{address}> has been called not by owning module"""
             )
 
-        event.call(*args, **kwargs)
+        self.__eventQueue.put(EventQueueElement(event, args, kwargs))
 
     async def __callEventAsync(
         self, module: mbusModule, address: str, *args, **kwargs
@@ -511,7 +562,7 @@ class mBus(object):
             del self.__dependedOn[moduleName]
 
         module = self.__loadedModules[moduleName]
-        module._loaded.clear()
+        module.is_loaded.clear()
         module.unload()
 
         self.__logger.info(f"Module <{module.name}> has been unloaded")
@@ -588,7 +639,9 @@ class mBus(object):
     async def fireTriggerAsync(self, address: str, *args, **kwargs) -> Any:
         return self.fireTrigger(address, *args, **kwargs)
 
-    def addEventListener(self, address: str, listener):
+    def addEventListener(
+        self, address: str, listener: Callable[..., CoroutineType]
+    ):
         event = self.__getBusElement(address)
         if not isinstance(event, busEvent):
             raise EndpointeCallError(
