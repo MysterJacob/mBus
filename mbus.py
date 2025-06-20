@@ -246,7 +246,8 @@ class mbusModule:
     def safeWait(self, seconds: float):
         start = time.time()
         while time.time() - start < seconds:
-            if not self.is_loaded:
+            time.sleep(0)
+            if not self.is_loaded.is_set():
                 return
 
     def load(self):
